@@ -35,7 +35,9 @@ erDiagram
 
     Job {
         UUID id
-        ENUM action
+        string name
+        ENUM[] actions
         ENUM status
+
     }
     Job ||--o{ Datasource : related-to
