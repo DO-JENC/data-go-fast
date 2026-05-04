@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <!-- PROJECT BANNER -->
 <p align="center">
     <img src="./front/images/logo.png" alt="data-go-fast Logo" width="100" />
@@ -20,3 +21,7 @@
 
 ### 🔄 How it works
 When a user uploads a large dataset, the **`server`** streams it to S3, logs the metadata in PostgreSQL, and pushes a task to Redis. It then immediately returns a `202 Accepted` response. Meanwhile, the **`worker`** picks up the task from Redis, processes the heavy data asynchronously in the background, and updates the database once the job is complete.
+=======
+# data-go-fast
+A data processing app made with RUST by Polytech Montpellier students.
+>>>>>>> c488144 (docs: change profile)
