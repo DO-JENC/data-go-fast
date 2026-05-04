@@ -1,0 +1,37 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-case-conflict # Detects files that would clash on case-insensitive filesystems
+      - id: check-merge-conflict # Blocks unresolved Git conflict markers (<<<<<<<, =======, >>>>>>>)
+      - id: check-symlinks # Verifies symlinks are valid and not broken
+      - id: destroyed-symlinks # Detects symlinks accidentally replaced by plain files
+      - id: check-toml
+      - id: check-json
+      - id: check-yaml
+      - id: mixed-line-ending # Normalizes/flags inconsistent line endings (LF/CRLF)
+      - id: detect-private-key # Prevents committing private keys/secrets
+      - id: end-of-file-fixer # Ensures files end with a single trailing newline
+      - id: trailing-whitespace # Removes trailing spaces/tabs
+      - id: check-added-large-files # Blocks accidentally adding large files
+
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.14.0
+    hooks:
+      - id: hadolint
+  - repo: local
+    hooks:
+      - id: rust-format
+        name: Rust format
+        entry: cargo fmt --
+        # Formats Rust code according to rustfmt rules
+        pass_filenames: false
+        types: [file, rust]
+        language: system
+      - id: rust-clippy
+        name: Rust clippy
+        entry: cargo clippy --
+        # Runs Rust lints to catch common mistakes and bad patterns
+        pass_filenames: false
+        types: [file, rust]
+        language: system
