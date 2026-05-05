@@ -1,0 +1,100 @@
+services:
+  worker:
+    build: ./worker/
+    container_name: worker
+    restart: unless-stopped
+    ports:
+      - "${WORKER_PORT}:3000"
+    depends_on:
+      s3:
+        condition: service_started
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - worker
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+  server:
+    build: ./server/
+    container_name: server
+    restart: unless-stopped
+    ports:
+      - "${SERVER_PORT}:3000"
+    depends_on:
+      s3:
+        condition: service_started
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - server
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+  s3:
+    image: dxflrs/garage@sha256:866bd13ed2038ba7e7190e840482bc27234c4afaf77be8cfa439ae088c1e4690
+    container_name: s3
+    restart: unless-stopped
+    ports:
+      - "${S3_PORT}:3900"
+    networks:
+      - server
+      - worker
+    volumes:
+      - ./build/s3/garage.toml:/etc/garage.toml
+      - garage:/var/lib/garage
+  db:
+    image: postgres@sha256:78481659c47e862334611ccdaf7c369c986b3046da9857112f3b309114a65fb4
+    container_name: db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${DATABASE_PORT}:5432"
+    networks:
+      - server
+      - worker
+    volumes:
+      - db:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -d postgres -U ${POSTGRES_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  redis:
+    image: redis@sha256:832d7785830f3f4b559300e6191fc914b15642c1935252338825cf4332200148
+    container_name: redis
+    restart: unless-stopped
+    ports:
+        - "${REDIS_PORT}:6379"
+    networks:
+      - server
+      - worker
+    volumes:
+        - redis:/data
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+networks:
+  server:
+  worker:
+
+volumes:
+  garage:
+  db:
+  redis:
