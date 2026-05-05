@@ -1,4 +1,4 @@
-use sqlx::{PgPool, Row, postgres::PgPoolOptions};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::time::Duration;
 
 pub async fn create_pool_from_env() -> Result<PgPool, sqlx::Error> {
@@ -15,6 +15,7 @@ pub async fn create_pool_from_env() -> Result<PgPool, sqlx::Error> {
 #[cfg(test)]
 mod tests {
   use super::*; // import everything from the parent module (everything above)
+  use sqlx::Row;
 
   #[tokio::test] // mark this function as a test and tokio allow to run it asynchronously
   async fn test_create_pool_from_env() {
