@@ -9,7 +9,6 @@ on:
       - server/**
       - worker/**
       - .github/workflows/**
-      - Dockerfile
       - .pre-commit-config.yaml
       - Cargo.toml
       - docker-compose.yml
