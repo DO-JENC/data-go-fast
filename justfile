@@ -1,12 +1,12 @@
-set dotenv-load := true 
+set dotenv-load := true
 TEST_PASS := "password123"
 TEST_USER_EMAIL := "alice@example.com"
 
-default: 
+default:
     @just --list
 
 # Initialise the project environments
-init: 
+init:
     @if [ ! -f .env ]; then \
     cp .env.example .env; \
     echo ".env created from .env.example."; \
@@ -17,9 +17,10 @@ init:
 up: init
     docker-compose up -d
 
-down: 
+down:
     docker-compose down
 
+# Insert default user & group into database
 seed:
     #!/usr/bin/env bash
     echo "Seeding database..."
