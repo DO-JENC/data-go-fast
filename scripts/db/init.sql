@@ -1,5 +1,5 @@
 -- Provides functions to generate UUID
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; 
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TYPE datasource_type AS ENUM ('csv', 'json');
 CREATE TYPE job_status AS ENUM ('pending', 'running', 'done', 'error');
@@ -29,7 +29,7 @@ CREATE TABLE datasources (
     type datasource_type NOT NULL,
     size FLOAT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    group_id UUID REFERENCES groups(id) 
+    group_id UUID REFERENCES groups(id)
 );
 
 CREATE TABLE json_table (
