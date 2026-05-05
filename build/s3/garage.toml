@@ -1,0 +1,15 @@
+metadata_dir = "/var/lib/garage/meta" # Directory in which metadata are stored
+data_dir = "/var/lib/garage/data" # Directory in which data are stored
+db_engine = "lmdb" # DB Engine : LMDB is the recommended one
+
+replication_factor = 1 # Using only one node
+
+# For nodes to communicate (needed even with no replication)
+rpc_bind_addr = "[::]:3901"
+rpc_public_addr = "127.0.0.1:3901"
+rpc_secret = "22e22e8288df8bd3e684a41b779247d0256ed889c931056679839098363a4e9f"
+
+[s3_api]
+s3_region = "garage"
+api_bind_addr = "[::]:3900"
+root_domain = ".s3.garage"
