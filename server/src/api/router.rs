@@ -1,5 +1,6 @@
 use axum::{
   Router,
+  http::StatusCode,
   routing::{delete, get, post},
 };
 
@@ -20,6 +21,7 @@ fn jobs_router() -> Router {
 
 pub fn router() -> Router {
   Router::new()
+    .route("/health", get(StatusCode::OK))
     .nest("/datasources", datasources_router())
     .nest("/jobs", jobs_router())
 }
