@@ -27,7 +27,13 @@ dev-worker:
 
 # Run development environment
 dev: up
-    just dev-front & just dev-server & just dev-worker
+    #!/usr/bin/env bash
+    set -e
+    trap 'kill 0' EXIT
+    just dev-front &
+    just dev-server &
+    just dev-worker &
+    wait
 
 
 # Stop external services (redis, S3, postgres) and remove volumes, networks, and orphaned containers
@@ -44,11 +50,13 @@ _init: _doctor
     fi
 
 _wait-for-db:
-    @echo "Waiting for PostgreSQL to be ready..."
-    @until docker compose exec -T db pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-postgres} > /dev/null 2>&1; do \
-        sleep 1; \
+    #!/usr/bin/env bash
+    echo "Waiting for PostgreSQL..."
+    for i in $(seq 1 30); do
+        docker compose exec -T db pg_isready -U ${POSTGRES_USER} > /dev/null 2>&1 && echo "PostgreSQL is ready!" && exit 0
+        sleep 1
     done
-    @echo "PostgreSQL is ready!"
+    echo "PostgreSQL did not become ready in time." && exit 1
 
 _seed:
     #!/usr/bin/env bash
