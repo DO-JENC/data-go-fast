@@ -1,6 +1,7 @@
 set dotenv-load := true
 TEST_PASS := "password123"
 TEST_USER_EMAIL := "alice@example.com"
+DATABASE_URL := "postgres://" + env_var("POSTGRES_USER") + ":" + env_var("POSTGRES_PASSWORD") + "@localhost:" + env_var("DATABASE_PORT") + "/" + env_var("POSTGRES_USER")
 
 default:
     @just --list
@@ -44,24 +45,28 @@ clean:
 
 _init: _doctor
     @if [ ! -f .env ]; then \
-    cp .env.example .env; \
-    echo ".env created from .env.example."; \
-    read -p "Press enter to continue or Ctrl+C to edit .env manually..."; \
+        cp .env.example .env; \
+        echo ".env created from .env.example."; \
+        printf "Press enter to continue or Ctrl+C to edit .env manually..."; \
+        read _ < /dev/tty; \
     fi
 
 _wait-for-db:
     #!/usr/bin/env bash
-    echo "Waiting for PostgreSQL..."
-    for i in $(seq 1 30); do
-        docker compose exec -T db pg_isready -U ${POSTGRES_USER} > /dev/null 2>&1 && echo "PostgreSQL is ready!" && exit 0
+    echo "Waiting for PostgreSQL schema..."
+    for i in $(seq 1 60); do
+        docker compose exec -T db psql -U ${POSTGRES_USER} -d ${POSTGRES_USER} \
+            -c "SELECT 1 FROM groups LIMIT 1" > /dev/null 2>&1 \
+            && echo "PostgreSQL is ready!" && exit 0
+        echo "  attempt $i/60..."
         sleep 1
     done
-    echo "PostgreSQL did not become ready in time." && exit 1
+    echo "PostgreSQL schema did not initialize in time." && exit 1
 
 _seed:
     #!/usr/bin/env bash
     echo "Seeding database..."
-    psql $DATABASE_URL <<EOF
+    psql {{DATABASE_URL}} <<EOF
     CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
     WITH group_upsert AS (
