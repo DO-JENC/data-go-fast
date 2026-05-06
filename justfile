@@ -18,7 +18,7 @@ down:
     docker compose down
 
 dev-front:
-    cd frontend && pnpm run dev
+    cd front && pnpm run dev
 
 dev-server:
     cargo watch -C server -x run
