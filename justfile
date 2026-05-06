@@ -5,23 +5,41 @@ TEST_USER_EMAIL := "alice@example.com"
 default:
     @just --list
 
-# Initialise the project environments
-init:
+
+
+
+# Build and start the containers
+up: _init
+    docker compose up -d
+    @just _wait-for-db
+    @just _seed
+    @echo "Environment is running"
+
+# Stop containers
+down:
+    docker compose down
+
+# Stop containers and remove volumes, networks, and orphaned containers
+clean:
+    docker compose down --volumes --remove-orphans
+    @echo "Environment fully wiped (containers, volumes, and orphans removed)."
+
+
+_init:
     @if [ ! -f .env ]; then \
     cp .env.example .env; \
     echo ".env created from .env.example."; \
     read -p "Press enter to continue or Ctrl+C to edit .env manually..."; \
     fi
 
-# Build and start the containers
-up: init
-    docker-compose up -d
+_wait-for-db:
+    @echo "Waiting for PostgreSQL to be ready..."
+    @until docker compose exec -T db pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-postgres} > /dev/null 2>&1; do \
+        sleep 1; \
+    done
+    @echo "PostgreSQL is ready!"
 
-down:
-    docker-compose down
-
-# Insert default user & group into database
-seed:
+_seed:
     #!/usr/bin/env bash
     echo "Seeding database..."
     psql $DATABASE_URL <<EOF
