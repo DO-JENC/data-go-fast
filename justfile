@@ -5,27 +5,38 @@ TEST_USER_EMAIL := "alice@example.com"
 default:
     @just --list
 
-
-
-
-# Build and start the containers
+# Start the necessary external services (redis, S3, postgres)
 up: _init
     docker compose up -d
     @just _wait-for-db
     @just _seed
     @echo "Environment is running"
 
-# Stop containers
+# Stop external services (redis, S3, postgres)
 down:
     docker compose down
 
-# Stop containers and remove volumes, networks, and orphaned containers
+dev-front:
+    cd frontend && pnpm run dev
+
+dev-server:
+    cargo watch -C server -x run
+
+dev-worker:
+    cargo watch -C worker -x run
+
+# Run development environment
+dev: up
+    just dev-front & just dev-server & just dev-worker
+
+
+# Stop external services (redis, S3, postgres) and remove volumes, networks, and orphaned containers
 clean:
     docker compose down --volumes --remove-orphans
     @echo "Environment fully wiped (containers, volumes, and orphans removed)."
 
 
-_init:
+_init: _doctor
     @if [ ! -f .env ]; then \
     cp .env.example .env; \
     echo ".env created from .env.example."; \
@@ -67,3 +78,12 @@ _seed:
 
     \i scripts/db/insert.sql
     EOF
+
+# Check if all necessary tools are installed
+_doctor:
+    @echo "Checking dependencies..."
+    @command -v cargo >/dev/null 2>&1 || (echo "cargo is not installed. Install it from https://rustup.rs/"; exit 1)
+    @command -v cargo-watch >/dev/null 2>&1 || (echo "cargo-watch is missing. Run: cargo install cargo-watch"; exit 1)
+    @command -v docker >/dev/null 2>&1 || (echo "docker is missing. Install Docker Engine."; exit 1)
+    @command -v pnpm >/dev/null 2>&1 || (echo "pnpm is missing. Run: npm install -g pnpm"; exit 1)
+    @echo "All systems go!"
