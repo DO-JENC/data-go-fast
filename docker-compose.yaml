@@ -42,7 +42,7 @@ services:
       retries: 5
       start_period: 10s
   s3:
-    image: dxflrs/garage@sha256:866bd13ed2038ba7e7190e840482bc27234c4afaf77be8cfa439ae088c1e4690
+    build: ./build/s3
     container_name: s3
     restart: unless-stopped
     ports:
@@ -50,6 +50,23 @@ services:
     networks:
       - server
       - worker
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-garage}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+    - |
+      /garage server &
+      sleep 2
+      export NODE_ID=$(/garage node id | head -n 1 | cut -d'@' -f1)
+      /garage layout assign -z $${AWS_DEFAULT_REGION} -c 1G $$NODE_ID
+      /garage layout apply --version 1
+      /garage key import -n garage-key $${AWS_ACCESS_KEY_ID} $${AWS_SECRET_ACCESS_KEY} --yes
+      /garage bucket create data-go-fast
+      /garage bucket allow --read --write --key garage-key data-go-fast
+      echo -ne "export AWS_ACCESS_KEY_ID=$$AWS_ACCESS_KEY_ID \nexport AWS_SECRET_ACCESS_KEY=$$AWS_SECRET_ACCESS_KEY \nexport AWS_DEFAULT_REGION=$$AWS_DEFAULT_REGION \n"
+      wait
     volumes:
       - ./build/s3/garage.toml:/etc/garage.toml
       - garage:/var/lib/garage
