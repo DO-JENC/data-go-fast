@@ -1,6 +1,7 @@
 services:
   worker:
     build: ./worker/
+    profiles: [prod]
     container_name: worker
     restart: unless-stopped
     ports:
@@ -22,6 +23,7 @@ services:
       start_period: 10s
   server:
     build: ./server/
+    profiles: [prod]
     container_name: server
     restart: unless-stopped
     ports:
