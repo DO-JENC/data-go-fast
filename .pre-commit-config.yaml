@@ -21,6 +21,24 @@ repos:
       - id: hadolint
   - repo: local
     hooks:
+      - id: install-deps
+        name: Install dependencies
+        language: node
+        files: front/.*
+        entry: pnpm --prefix=front install --frozen-lockfile
+        pass_filenames: false
+      - id: front-format
+        name: Format frontend
+        language: node
+        files: front/.*
+        entry: pnpm --prefix=front fmt
+        pass_filenames: false
+      - id: front-lint
+        name: Lint frontend
+        language: node
+        files: front/.*
+        entry: pnpm --prefix=front lint
+        pass_filenames: false
       - id: rust-format
         name: Rust format
         entry: cargo fmt --
