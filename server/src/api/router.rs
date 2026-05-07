@@ -1,27 +1,30 @@
+use crate::handlers::datasources::*;
 use axum::{
   Router,
   http::StatusCode,
   routing::{delete, get, post},
 };
+use sqlx::PgPool;
 
-fn datasources_router() -> Router {
+fn datasources_router() -> Router<PgPool> {
   Router::new()
-    .route("/", get("GET /datasources"))
-    .route("/", post("POST /datasources"))
-    .route("/{id}", get("GET /datasources/{id}"))
-    .route("/{id}", delete("DELETE /datasources/{id}"))
+    .route("/", get(get_all_datasources))
+    .route("/{id}", get(get_datasource_by_id))
+    .route("/", post(|| async { StatusCode::NOT_IMPLEMENTED }))
+    .route("/{id}", delete(|| async { StatusCode::NOT_IMPLEMENTED }))
 }
 
-fn jobs_router() -> Router {
+fn jobs_router() -> Router<PgPool> {
   Router::new()
-    .route("/", post("POST /jobs"))
-    .route("/", get("GET /jobs"))
-    .route("/{id}", get("GET /jobs/{id}"))
+    .route("/", post(|| async { StatusCode::NOT_IMPLEMENTED }))
+    .route("/", get(|| async { StatusCode::NOT_IMPLEMENTED }))
+    .route("/{id}", get(|| async { StatusCode::NOT_IMPLEMENTED }))
 }
 
-pub fn router() -> Router {
+pub fn router(pool: PgPool) -> Router {
   Router::new()
-    .route("/health", get(StatusCode::OK))
+    .route("/health", get(|| async { StatusCode::OK }))
     .nest("/datasources", datasources_router())
     .nest("/jobs", jobs_router())
+    .with_state(pool) // pass the database connection pool to all routes
 }
