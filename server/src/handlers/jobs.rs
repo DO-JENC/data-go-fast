@@ -15,7 +15,7 @@ pub async fn add_job_to_redis(pipeline: Value) -> RedisResult<()> {
         "pipeline": pipeline
     });
 
-    let response: () = con.json_set("UUID_job", "$", &redis_json.to_string()).await?;
+    let response: () = con.json_set("UUID_job", "$", &redis_json).await?;
     Ok(response)
 
 }
