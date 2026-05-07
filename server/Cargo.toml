@@ -4,5 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+common = { workspace = true }
 axum = "0.8.9"
 tokio = { version = "1.52.2", features = ["macros", "rt-multi-thread"] }
+sqlx = "0.8.6"
+uuid = { version = "1.23.1", features = ["v4", "serde"] }
