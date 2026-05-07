@@ -1,6 +1,8 @@
 services:
   worker:
-    build: ./worker/
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
     profiles: [prod]
     container_name: worker
     restart: unless-stopped
@@ -22,7 +24,9 @@ services:
       retries: 5
       start_period: 10s
   server:
-    build: ./server/
+    build:
+      context: .
+      dockerfile: server/Dockerfile
     profiles: [prod]
     container_name: server
     restart: unless-stopped
