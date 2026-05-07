@@ -25,7 +25,7 @@ CREATE TABLE datasources (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     s3_id TEXT NOT NULL,
     name TEXT NOT NULL,
-    type datasource_type NOT NULL,
+    file_type datasource_type NOT NULL,
     size FLOAT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     group_id UUID REFERENCES groups(id)
