@@ -1,7 +1,8 @@
 use redis::{ Client, aio::MultiplexedConnection, JsonAsyncCommands, RedisResult};
+use uuid::Uuid;
 use serde_json::{json, Value};
 
-pub async fn add_job_to_redis(pipeline: Value) -> RedisResult<()> {
+pub async fn add_job_to_redis(pipeline: Value, job_uuid: Uuid) -> RedisResult<()> {
 
     let redis_connection_string: String = std::env::var("REDIS_CONNECTION_STRING").expect("REDIS_CONNECTION_STRING environment variable not found.");
 
@@ -15,7 +16,7 @@ pub async fn add_job_to_redis(pipeline: Value) -> RedisResult<()> {
         "pipeline": pipeline
     });
 
-    let response: () = con.json_set("UUID_job", "$", &redis_json).await?;
+    let response: () = con.json_set(job_uuid.to_string(), "$", &redis_json).await?;
     Ok(response)
 
 }
