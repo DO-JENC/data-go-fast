@@ -10,7 +10,7 @@ fn datasources_router() -> Router<PgPool> {
   Router::new()
     .route("/", get(get_all_datasources))
     .route("/{id}", get(get_datasource_by_id))
-    .route("/", post(|| async { StatusCode::NOT_IMPLEMENTED }))
+    .route("/", post(csv_ingestion_handler))
     .route("/{id}", delete(|| async { StatusCode::NOT_IMPLEMENTED }))
 }
 
