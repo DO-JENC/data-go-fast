@@ -94,9 +94,10 @@ _seed:
 
 # Check if all necessary tools are installed
 _doctor:
-    @echo "Checking dependencies..."
-    @command -v cargo >/dev/null 2>&1 || (echo "cargo is not installed. Install it from https://rustup.rs/"; exit 1)
-    @command -v cargo-watch >/dev/null 2>&1 || (echo "cargo-watch is missing. Run: cargo install cargo-watch"; exit 1)
-    @command -v docker >/dev/null 2>&1 || (echo "docker is missing. Install Docker Engine."; exit 1)
-    @command -v pnpm >/dev/null 2>&1 || (echo "pnpm is missing. Run: npm install -g pnpm"; exit 1)
-    @echo "All systems go!"
+	@echo "Checking dependencies..."
+	@command -v cargo >/dev/null 2>&1 || (echo "cargo is not installed. Install it from https://rustup.rs/"; exit 1)
+	@command -v cargo-watch >/dev/null 2>&1 || (echo "cargo-watch is missing. Run: cargo install cargo-watch"; exit 1)
+	@command -v docker >/dev/null 2>&1 || (echo "docker is missing. Install Docker Engine."; exit 1)
+	@command -v pnpm >/dev/null 2>&1 || (echo "pnpm is missing. Run: corepack enable pnpm"; exit 1)
+	@command -v psql >/dev/null 2>&1 || (echo "psql is missing. Install PostgreSQL client tools (e.g., 'sudo apt install postgresql-client')."; exit 1)
+	@echo "All systems go!"
