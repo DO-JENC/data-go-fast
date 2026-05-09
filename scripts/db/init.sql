@@ -40,7 +40,7 @@ CREATE TABLE json_table (
 CREATE TABLE jobs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
-    actions JSONB NOT NULL,
+    pipeline JSONB NOT NULL,
     status job_status DEFAULT 'pending'
 );
 
