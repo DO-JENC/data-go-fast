@@ -24,7 +24,7 @@ CREATE TABLE user_groups (
 
 CREATE TABLE datasources (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    s3_id UUID NOT NULL,
+    s3_id TEXT NOT NULL,
     name TEXT NOT NULL,
     type datasource_type NOT NULL,
     size FLOAT NOT NULL,
