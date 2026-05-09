@@ -3,7 +3,6 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TYPE datasource_type AS ENUM ('csv', 'json');
 CREATE TYPE job_status AS ENUM ('pending', 'running', 'done', 'error');
-CREATE TYPE job_action AS ENUM ('ingest', 'filter', 'group_by', 'aggregate');
 
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
