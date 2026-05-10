@@ -1,4 +1,6 @@
 use crate::handlers::datasources::*;
+use crate::AppState;
+use crate::handlers::datasources::csv_ingestion_handler;
 use axum::{
   Router,
   http::StatusCode,
@@ -6,7 +8,7 @@ use axum::{
 };
 use sqlx::PgPool;
 
-fn datasources_router() -> Router<PgPool> {
+fn datasources_router() -> Router<AppState> {
   Router::new()
     .route("/", get(get_all_datasources))
     .route("/{id}", get(get_datasource_by_id))
@@ -14,17 +16,17 @@ fn datasources_router() -> Router<PgPool> {
     .route("/{id}", delete(|| async { StatusCode::NOT_IMPLEMENTED }))
 }
 
-fn jobs_router() -> Router<PgPool> {
+fn jobs_router() -> Router<AppState> {
   Router::new()
     .route("/", post(|| async { StatusCode::NOT_IMPLEMENTED }))
     .route("/", get(|| async { StatusCode::NOT_IMPLEMENTED }))
     .route("/{id}", get(|| async { StatusCode::NOT_IMPLEMENTED }))
 }
 
-pub fn router(pool: PgPool) -> Router {
+pub fn router(state: AppState) -> Router {
   Router::new()
     .route("/health", get(|| async { StatusCode::OK }))
     .nest("/datasources", datasources_router())
     .nest("/jobs", jobs_router())
-    .with_state(pool) // pass the database connection pool to all routes
+    .with_state(state)
 }
