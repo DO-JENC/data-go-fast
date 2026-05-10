@@ -28,14 +28,14 @@ pub async fn add_job_to_redis(
 
 pub async fn add_job_to_postgres(
   pool: &Pool<Postgres>,
+  pipeline: &Value,
   job_uuid: &Uuid,
   job_name: &str,
-  job_actions: &Value,
 ) -> Result<PgRow, Error> {
   query("INSERT INTO jobs VALUES ($1, $2, $3, 'pending') RETURNING *;")
     .bind(job_uuid)
     .bind(job_name)
-    .bind(job_actions)
+    .bind(pipeline)
     .fetch_one(pool)
     .await
 }
