@@ -275,9 +275,12 @@ pub async fn csv_ingestion_handler(
     _ => {}
   }
 
+  // Define job name
+  let job_name: String = format!("Ingestion of {}", &file_name);
+
   // Add ingest job to Redis
   let ingest_job_to_redis: Result<(), redis::RedisError> =
-    add_job_to_redis(&pipeline, &job_uuid, &file_name, &datasource_s3_id).await;
+    add_job_to_redis(&pipeline, &job_uuid, &job_name, &datasource_s3_id).await;
 
   match ingest_job_to_redis {
     Err(e) => return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)),
@@ -285,7 +288,6 @@ pub async fn csv_ingestion_handler(
   }
 
   // Add ingest job to Postgres
-  let job_name: String = format!("Ingestion of {}", &file_name);
   let ingest_job_to_postgres: Result<PgRow, Error> =
     add_job_to_postgres(&pool, &job_uuid, &job_name, &pipeline).await;
 

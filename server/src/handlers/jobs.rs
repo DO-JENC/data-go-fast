@@ -6,8 +6,8 @@ use uuid::Uuid;
 pub async fn add_job_to_redis(
   pipeline: &Value,
   job_uuid: &Uuid,
-  filename: &String,
-  datasource_s3_id: &String,
+  job_name: &str,
+  datasource_s3_id: &str,
 ) -> RedisResult<()> {
   let redis_connection_string: String = std::env::var("REDIS_CONNECTION_STRING")
     .expect("REDIS_CONNECTION_STRING environment variable not found.");
@@ -16,7 +16,7 @@ pub async fn add_job_to_redis(
   let mut con: MultiplexedConnection = client.get_multiplexed_async_connection().await?;
 
   let redis_json: Value = json!({
-      "name": filename,
+      "name": job_name,
       "status": "pending",
       "datasource_id": datasource_s3_id,
       "pipeline": pipeline
