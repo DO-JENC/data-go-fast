@@ -22,10 +22,7 @@ async fn main() {
   let pool: Pool<Postgres> = create_pool_from_env().await.unwrap();
   let s3_instance = init_s3_instance();
 
-  let state: AppState = AppState {
-    pool: pool,
-    s3_instance: s3_instance,
-  };
+  let state: AppState = AppState { pool, s3_instance };
 
   let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
   let router = app_router(state);
