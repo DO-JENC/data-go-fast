@@ -1,15 +1,19 @@
 use common::infra::database::datasource::Datasource;
 use sqlx::PgPool;
 use uuid::Uuid;
-
+use csv::Reader;
 use awscreds::Credentials;
 use axum::{Json, body::Bytes, extract::{Multipart, Path, State}, http::StatusCode, response::IntoResponse};
 use redis::RedisResult;
 use s3::{Bucket, error::S3Error, region::Region, request::ResponseData};
 use serde_json::{Value, json};
+use sqlx::{Error, Pool, Postgres, postgres::PgRow, query};
 use uuid::Uuid;
 
-use crate::handlers::jobs::add_job_to_redis;
+
+use crate::AppState;
+use crate::S3Instance;
+use crate::handlers::jobs::{add_job_to_postgres, add_job_to_redis};
 
 pub async fn get_all_datasources(
   State(pool): State<PgPool>,
@@ -58,39 +62,103 @@ pub async fn get_datasource_by_id(
   }
 }
 
-async fn add_file_to_s3(
+struct FileUploadRequest {
   file_content: Bytes,
-  file_uuid: Uuid,
-  group: &str,
+  file_name: String,
+  file_size: f64,
+  metadata: Value,
+}
+
+async fn parse_multipart(
+  mut multipart: Multipart,
+) -> Result<FileUploadRequest, (StatusCode, String)> {
+  // Initiate needed variables from request
+  let mut file_content: Option<Bytes> = None;
+  let mut file_name: Option<String> = None;
+  let mut metadata: Option<Value> = None;
+
+  // Try to read body request
+  while let Some(field) = multipart.next_field().await.map_err(|e| {
+    (
+      StatusCode::BAD_REQUEST,
+      format!("Failed to read multipart: {:?}", e),
+    )
+  })? {
+    let key = field.name().unwrap_or("").to_string();
+    match key.as_str() {
+      "file" => {
+        file_name = Some(
+          field
+            .file_name()
+            .ok_or((StatusCode::BAD_REQUEST, "Missing file name".to_string()))?
+            .to_string(),
+        );
+        file_content = Some(field.bytes().await.map_err(|e| {
+          (
+            StatusCode::BAD_REQUEST,
+            format!("Failed to read file: {:?}", e),
+          )
+        })?);
+      }
+      "metadata" => {
+        let text = field.text().await.map_err(|e| {
+          (
+            StatusCode::BAD_REQUEST,
+            format!("Failed to read metadata: {:?}", e),
+          )
+        })?;
+        metadata = Some(serde_json::from_str(&text).map_err(|e| {
+          (
+            StatusCode::BAD_REQUEST,
+            format!("Invalid metadata JSON: {:?}", e),
+          )
+        })?);
+      }
+      _ => {}
+    }
+  }
+
+  // Return BAD_REQUEST if any field is missing
+  let file_content: Bytes =
+    file_content.ok_or((StatusCode::BAD_REQUEST, "Missing file field".to_string()))?;
+  let file_name: String =
+    file_name.ok_or((StatusCode::BAD_REQUEST, "Missing file name".to_string()))?;
+  let metadata: Value = metadata.ok_or((
+    StatusCode::BAD_REQUEST,
+    "Missing metadata field".to_string(),
+  ))?;
+  let file_size: f64 = file_content.len() as f64 / (1024.0 * 1024.0); // Convert bytes to MB
+
+  Ok(FileUploadRequest {
+    file_content,
+    file_name,
+    file_size,
+    metadata,
+  })
+}
+
+fn validate_csv(content: &Bytes) -> Result<(), String> {
+  let mut reader = Reader::from_reader(content.as_ref());
+
+  for result in reader.records() {
+    result.map_err(|e| format!("Invalid CSV: {:?}", e))?;
+  }
+
+  Ok(())
+}
+
+async fn add_file_to_s3(
+  s3_instance: &S3Instance,
+  file_content: &Bytes,
+  file_uuid: &Uuid,
+  group: &Uuid,
 ) -> Result<ResponseData, S3Error> {
-  // Load S3 related environment variables
-  let region: String = std::env::var("AWS_DEFAULT_REGION")
-    .expect("AWS_DEFAULT_REGION environment variable not found.");
-  let endpoint: String =
-    std::env::var("S3_ENDPOINT").expect("S3_ENDPOINT environment variable not found.");
-  let access_key: String =
-    std::env::var("AWS_ACCESS_KEY_ID").expect("AWS_ACCESS_KEY_ID environment variable not found.");
-  let secret_access_key: String = std::env::var("AWS_SECRET_ACCESS_KEY")
-    .expect("AWS_SECRET_ACCESS_KEY environment variable not found.");
-  let bucket_name: String =
-    std::env::var("BUCKET_NAME").expect("BUCKET_NAME environment variable not found.");
-
-  // Set up S3 objects
-  let region: Region = Region::Custom {
-    region: region.to_owned(),
-    endpoint: endpoint.to_owned(),
-  };
-
-  let credentials: Credentials = Credentials {
-    access_key: Some(access_key),
-    secret_key: Some(secret_access_key),
-    security_token: None,
-    session_token: None,
-    expiration: None,
-  };
-
-  let mut bucket: Box<Bucket> =
-    Bucket::new(&bucket_name, region.clone(), credentials.clone()).unwrap();
+  let mut bucket: Box<Bucket> = Bucket::new(
+    &s3_instance.bucket_name,
+    s3_instance.region.clone(),
+    s3_instance.credentials.clone(),
+  )
+  .unwrap();
 
   // Add file to S3 bucket
   bucket.set_path_style();
@@ -99,10 +167,64 @@ async fn add_file_to_s3(
     .await
 }
 
-pub async fn add_ingest_job_to_redis(metadata: Value, job_uuid: Uuid) -> RedisResult<()> {
-  // Extract file metadata from request
-  let file_type: &Value = metadata.get("type").unwrap();
-  let header: &Value = metadata.get("header").unwrap();
+async fn add_datasource_to_postgres(
+  pool: &Pool<Postgres>,
+  file_uuid: &Uuid,
+  datasource_s3_id: &str,
+  file_name: &str,
+  file_size: &f64,
+  group: &Uuid,
+) -> Result<PgRow, Error> {
+  query(
+    "
+  INSERT INTO
+  datasources (id, s3_id, name, type, size, group_id)
+  VALUES ($1, $2, $3, 'csv', $4, $5 ) RETURNING *;",
+  )
+  .bind(file_uuid)
+  .bind(datasource_s3_id)
+  .bind(file_name)
+  .bind(file_size)
+  .bind(group)
+  .fetch_one(pool)
+  .await
+}
+
+pub async fn csv_ingestion_handler(
+  State(state): State<AppState>,
+  multipart: Multipart,
+) -> impl IntoResponse {
+  // Handle body request
+  let FileUploadRequest {
+    file_content,
+    file_name,
+    file_size,
+    metadata,
+  } = match parse_multipart(multipart).await {
+    Ok(val) => val,
+    Err(e) => return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)),
+  };
+
+  // Initiate ingest job pipeline
+  let file_type: &Value = match metadata.get("type") {
+    Some(val) => val,
+    None => {
+      return (
+        StatusCode::BAD_REQUEST,
+        "Missing 'type' field in metadata".to_string(),
+      );
+    }
+  };
+
+  let header: &Value = match metadata.get("header") {
+    Some(val) => val,
+    None => {
+      return (
+        StatusCode::BAD_REQUEST,
+        "Missing 'header' field in metadata".to_string(),
+      );
+    }
+  };
 
   let pipeline: Value = json!([{
       "op": "ingest",
@@ -110,70 +232,67 @@ pub async fn add_ingest_job_to_redis(metadata: Value, job_uuid: Uuid) -> RedisRe
       "header": header,
   }]);
 
-  // Add ingest job to Redis
-  add_job_to_redis(pipeline, job_uuid).await
-}
-
-pub async fn csv_ingestion_handler(mut multipart: Multipart) -> impl IntoResponse {
-  // Handles body request
-  let mut file: Option<Bytes> = None;
-  let mut metadata: Option<Value> = None;
-
-  while let Some(field) = multipart.next_field().await.unwrap() {
-    let key = field.name().unwrap_or("").to_string();
-
-    match key.as_str() {
-      "file" => {
-        let data = field.bytes().await.unwrap();
-        file = Some(data);
-      }
-      "metadata" => {
-        let text = field.text().await.unwrap();
-        metadata = Some(serde_json::from_str(&text).unwrap());
-      }
-      _ => {}
-    }
+  // Make sure file is a correct CSV
+  if let Err(e) = validate_csv(&file_content) {
+    return (StatusCode::UNSUPPORTED_MEDIA_TYPE, e);
   }
 
   // TO-DO : Implement authentication and change group dynamically
-  let group: &str = "ADMIN";
+  let group: Uuid = Uuid::parse_str("9251e420-2dd3-4776-9f53-98ad52e02d79").unwrap();
+
+  // Generate File and Job UUID
   let file_uuid: Uuid = Uuid::new_v4();
   let job_uuid: Uuid = Uuid::new_v4();
 
-  println!("File UUID: {}", file_uuid);
-  println!("Job Ingestion UUID: {}", job_uuid);
-
   // Upload file to S3 Bucket
-  let file: Bytes = file.unwrap();
-  let file_to_s3: Result<ResponseData, S3Error> = add_file_to_s3(file, file_uuid, group).await;
+  let s3_instance: S3Instance = state.s3_instance;
+  let file_to_s3: Result<ResponseData, S3Error> =
+    add_file_to_s3(&s3_instance, &file_content, &file_uuid, &group).await;
 
   match file_to_s3 {
-    Ok(response) => {
-      println!("S3 upload successful: {:?}", response);
-    }
-    Err(e) => {
-      eprintln!("S3 upload failed: {:?}", e);
-      return (StatusCode::BAD_REQUEST, format!("Erreur S3 : {:?}", e));
-    }
+    Err(e) => return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)),
+    _ => {}
+  }
+
+  // Add datasource to Postgres
+  let datasource_s3_id: String = format!(
+    "s3://{}/{}/{}",
+    &s3_instance.bucket_name, &group, &file_uuid
+  );
+  let pool: Pool<Postgres> = state.pool;
+  let datasource_to_postgres: Result<PgRow, Error> = add_datasource_to_postgres(
+    &pool,
+    &file_uuid,
+    &datasource_s3_id,
+    &file_name,
+    &file_size,
+    &group,
+  )
+  .await;
+
+  match datasource_to_postgres {
+    Err(e) => return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)),
+    _ => {}
   }
 
   // Add ingest job to Redis
-  let metadata: Value = metadata.unwrap();
   let ingest_job_to_redis: Result<(), redis::RedisError> =
-    add_ingest_job_to_redis(metadata, job_uuid).await;
+    add_job_to_redis(&pipeline, &job_uuid, &file_name, &datasource_s3_id).await;
 
   match ingest_job_to_redis {
-    Ok(response) => {
-      println!("Ingest job successfully added to Redis: {:?}", response);
-    }
-    Err(e) => {
-      eprintln!("Error adding ingest job to Redis: {:?}", e);
-      return (StatusCode::BAD_REQUEST, format!("Erreur Redis : {:?}", e));
-    }
+    Err(e) => return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)),
+    _ => {}
   }
 
-  match ingest_job_to_redis {
-    Ok(_) => (StatusCode::OK, "Upload file successful.".to_string()),
-    Err(e) => (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)),
+  // Add ingest job to Postgres
+  let job_name: String = format!("Ingestion of {}", &file_name);
+  let ingest_job_to_postgres: Result<PgRow, Error> =
+    add_job_to_postgres(&pool, &job_uuid, &job_name, &pipeline).await;
+
+  match ingest_job_to_postgres {
+    Err(e) => return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)),
+    _ => {}
   }
+
+  (StatusCode::OK, "Upload file successful.".to_string())
 }
