@@ -42,13 +42,13 @@ pub fn init_s3_instance() -> S3Instance {
 
   // Initiate S3Instance
   S3Instance {
-    endpoint: endpoint,
-    bucket_name: bucket_name,
+    endpoint,
+    bucket_name,
 
-    access_key: access_key,
-    secret_access_key: secret_access_key,
+    access_key,
+    secret_access_key,
 
-    region: region,
-    credentials: credentials,
+    region,
+    credentials,
   }
 }
