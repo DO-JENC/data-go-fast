@@ -31,11 +31,20 @@ pub async fn add_job_to_postgres(
   pipeline: &Value,
   job_uuid: &Uuid,
   job_name: &str,
+  file_uuid: &Uuid,
 ) -> Result<PgRow, Error> {
-  query("INSERT INTO jobs VALUES ($1, $2, $3, 'pending') RETURNING *;")
+  let job_row = query("INSERT INTO jobs VALUES ($1, $2, $3, 'pending') RETURNING *;")
     .bind(job_uuid)
     .bind(job_name)
     .bind(pipeline)
     .fetch_one(pool)
-    .await
+    .await?;
+
+  query("INSERT INTO job_datasources VALUES ($1, $2) RETURNING *;")
+    .bind(job_uuid)
+    .bind(file_uuid)
+    .fetch_one(pool)
+    .await?;
+
+  Ok(job_row)
 }
