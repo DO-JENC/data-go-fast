@@ -289,7 +289,7 @@ pub async fn csv_ingestion_handler(
 
   // Add ingest job to Postgres
   let ingest_job_to_postgres: Result<PgRow, Error> =
-    add_job_to_postgres(&pool, &pipeline, &job_uuid, &job_name).await;
+    add_job_to_postgres(&pool, &pipeline, &job_uuid, &job_name, &file_uuid).await;
 
   match ingest_job_to_postgres {
     Err(e) => return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)),
