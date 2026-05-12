@@ -163,7 +163,7 @@ async fn add_file_to_s3(
   // Add file to S3 bucket
   bucket.set_path_style();
   bucket
-    .put_object(format!("/{}/{}.csv", group, file_uuid), &file_content)
+    .put_object(format!("/{}/{}.csv", group, file_uuid), file_content)
     .await
 }
 
@@ -249,10 +249,9 @@ pub async fn csv_ingestion_handler(
   let file_to_s3: Result<ResponseData, S3Error> =
     add_file_to_s3(&s3_instance, &file_content, &file_uuid, &group).await;
 
-  match file_to_s3 {
-    Err(e) => return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)),
-    _ => {}
-  }
+  if let Err(e) = file_to_s3 {
+    return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
+  };
 
   // Add datasource to Postgres
   let datasource_s3_id: String = format!(
@@ -270,10 +269,9 @@ pub async fn csv_ingestion_handler(
   )
   .await;
 
-  match datasource_to_postgres {
-    Err(e) => return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)),
-    _ => {}
-  }
+  if let Err(e) = datasource_to_postgres {
+    return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
+  };
 
   // Define job name
   let job_name: String = format!("Ingestion of {}", &file_name);
@@ -282,19 +280,17 @@ pub async fn csv_ingestion_handler(
   let ingest_job_to_redis: Result<(), redis::RedisError> =
     add_job_to_redis(&pipeline, &job_uuid, &job_name, &datasource_s3_id).await;
 
-  match ingest_job_to_redis {
-    Err(e) => return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)),
-    _ => {}
-  }
+  if let Err(e) = ingest_job_to_redis {
+    return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
+  };
 
   // Add ingest job to Postgres
   let ingest_job_to_postgres: Result<PgRow, Error> =
     add_job_to_postgres(&pool, &pipeline, &job_uuid, &job_name, &file_uuid).await;
 
-  match ingest_job_to_postgres {
-    Err(e) => return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)),
-    _ => {}
-  }
+  if let Err(e) = ingest_job_to_postgres {
+    return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
+  };
 
   (StatusCode::OK, "Upload file successful.".to_string())
 }
