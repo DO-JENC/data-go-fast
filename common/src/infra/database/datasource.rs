@@ -14,7 +14,7 @@ pub enum DatasourceType {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Datasource {
   pub id: Uuid,
-  pub s3_id: Uuid,
+  pub s3_id: String,
   pub name: String,
   pub file_type: Option<DatasourceType>,
   pub size: f64,
