@@ -1,6 +1,6 @@
 <!-- PROJECT BANNER -->
 <p align="center">
-    <img src="./front/images/logo.png" alt="data-go-fast Logo" width="100" />
+    <img src="./front/public/logo.png" alt="data-go-fast Logo" width="100" />
 </p>
 
 <p align="center">
