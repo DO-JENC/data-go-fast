@@ -89,7 +89,6 @@ _seed:
     FROM user_upsert, group_upsert
     ON CONFLICT DO NOTHING;
 
-    \i scripts/db/insert.sql
     EOF
 
 # Check if all necessary tools are installed
