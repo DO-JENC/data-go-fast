@@ -8,7 +8,7 @@ use argon2::{
 use axum::{Json, extract::State, http::StatusCode};
 
 pub async fn signup(
-  State(pool): State<AppState>,
+  State(state): State<AppState>,
   Json(payload): Json<SignupRequest>,
 ) -> Result<(StatusCode, Json<UserResponse>), (StatusCode, String)> {
   let salt = SaltString::generate(&mut OsRng);
@@ -19,7 +19,7 @@ pub async fn signup(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
     .to_string();
 
-  let user = create_user(&pool.pool, &payload.email, &password_hash)
+  let user = create_user(&state.pool, &payload.email, &password_hash)
     .await
     .map_err(|e| {
       if let Some(db_err) = e.as_database_error()

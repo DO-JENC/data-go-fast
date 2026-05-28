@@ -24,15 +24,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
-<<<<<<< HEAD
 name = "arcstr"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "03918c3dbd7701a85c6b9887732e2921175f26c350b4563841d0958c21d57e6d"
 
 [[package]]
-=======
->>>>>>> dc52e4e (feat(dependencies): add serde with the derive feature and argon2 to the server's dependencies to support user registration and password hashing)
 name = "argon2"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1450,17 +1447,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "password-hash"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "346f04948ba92c43e8469c1ee6736c7563d71012b17d40745260fe106aac2166"
-dependencies = [
- "base64ct",
- "rand_core",
- "subtle",
-]
-
-[[package]]
 name = "pem-rfc7468"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1968,7 +1954,6 @@ name = "server"
 version = "0.1.0"
 dependencies = [
  "argon2",
-<<<<<<< HEAD
  "aws-creds",
  "axum",
  "common",
@@ -1978,11 +1963,6 @@ dependencies = [
  "rust-s3",
  "serde",
  "serde_json",
-=======
- "axum",
- "common",
- "serde",
->>>>>>> dc52e4e (feat(dependencies): add serde with the derive feature and argon2 to the server's dependencies to support user registration and password hashing)
  "sqlx",
  "tokio",
  "uuid",
