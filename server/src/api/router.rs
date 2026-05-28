@@ -1,12 +1,11 @@
-use crate::handlers::datasources::*;
 use crate::AppState;
 use crate::handlers::datasources::csv_ingestion_handler;
+use crate::handlers::datasources::*;
 use axum::{
   Router,
   http::StatusCode,
   routing::{delete, get, post},
 };
-use sqlx::PgPool;
 
 fn datasources_router() -> Router<AppState> {
   Router::new()

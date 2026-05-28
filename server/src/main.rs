@@ -1,6 +1,5 @@
 mod api;
 mod handlers;
-use std::env;
 
 use crate::api::router::router as app_router;
 use common::infra::database::config::create_pool_from_env;
@@ -15,10 +14,6 @@ pub struct AppState {
 
 #[tokio::main]
 async fn main() {
-  let server_port = env::var("SERVER_PORT").expect("SERVER_PORT environment variable is not set");
-  let addr = format!("0.0.0.0:{server_port}");
-  let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-
   let pool: Pool<Postgres> = create_pool_from_env().await.unwrap();
   let s3_instance = init_s3_instance();
 
