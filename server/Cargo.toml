@@ -13,6 +13,5 @@ rust-s3 = "0.37.2"
 serde_json = "1.0.149"
 tokio = { version = "1.52.2", features = ["macros", "rt-multi-thread"] }
 uuid = { version = "1.23.1", features = ["v4", "serde"] }
-common = { path = "../common" }
 sqlx = { version = "0.8.6", features = ["uuid"] }
 csv = "1.4.0"

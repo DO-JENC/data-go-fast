@@ -1,22 +1,23 @@
+use axum::{
+  Json,
+  body::Bytes,
+  extract::{Multipart, Path, State},
+  http::StatusCode,
+  response::IntoResponse,
+};
 use common::infra::database::datasource::Datasource;
-use sqlx::PgPool;
-use uuid::Uuid;
 use csv::Reader;
-use awscreds::Credentials;
-use axum::{Json, body::Bytes, extract::{Multipart, Path, State}, http::StatusCode, response::IntoResponse};
-use redis::RedisResult;
-use s3::{Bucket, error::S3Error, region::Region, request::ResponseData};
+use s3::{Bucket, error::S3Error, request::ResponseData};
 use serde_json::{Value, json};
 use sqlx::{Error, Pool, Postgres, postgres::PgRow, query};
 use uuid::Uuid;
-
 
 use crate::AppState;
 use crate::S3Instance;
 use crate::handlers::jobs::{add_job_to_postgres, add_job_to_redis};
 
 pub async fn get_all_datasources(
-  State(pool): State<PgPool>,
+  State(state): State<AppState>,
 ) -> Result<Json<Vec<Datasource>>, (StatusCode, String)> {
   // TODO: use the connected user when authentication is implemented
   let group_id: Uuid = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
@@ -29,7 +30,7 @@ pub async fn get_all_datasources(
 
   let datasources = sqlx::query_as::<_, Datasource>(query)
     .bind(group_id)
-    .fetch_all(&pool)
+    .fetch_all(&state.pool)
     .await;
 
   match datasources {
@@ -39,7 +40,7 @@ pub async fn get_all_datasources(
 }
 
 pub async fn get_datasource_by_id(
-  State(pool): State<PgPool>,
+  State(state): State<AppState>,
   Path(id): Path<Uuid>,
 ) -> Result<Json<Datasource>, (StatusCode, String)> {
   // TODO: authentication and authorization checks should be implemented here
@@ -52,7 +53,7 @@ pub async fn get_datasource_by_id(
 
   let datasource = sqlx::query_as::<_, Datasource>(query)
     .bind(id)
-    .fetch_optional(&pool)
+    .fetch_optional(&state.pool)
     .await;
 
   match datasource {
@@ -178,7 +179,7 @@ async fn add_datasource_to_postgres(
   query(
     "
   INSERT INTO
-  datasources (id, s3_id, name, type, size, group_id)
+  datasources (id, s3_id, name, file_type, size, group_id)
   VALUES ($1, $2, $3, 'csv', $4, $5 ) RETURNING *;",
   )
   .bind(file_uuid)
@@ -238,7 +239,7 @@ pub async fn csv_ingestion_handler(
   }
 
   // TO-DO : Implement authentication and change group dynamically
-  let group: Uuid = Uuid::parse_str("9251e420-2dd3-4776-9f53-98ad52e02d79").unwrap();
+  let group: Uuid = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
 
   // Generate File and Job UUID
   let file_uuid: Uuid = Uuid::new_v4();
