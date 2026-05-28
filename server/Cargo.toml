@@ -15,3 +15,5 @@ tokio = { version = "1.52.2", features = ["macros", "rt-multi-thread"] }
 uuid = { version = "1.23.1", features = ["v4", "serde"] }
 sqlx = { version = "0.8.6", features = ["uuid"] }
 csv = "1.4.0"
+serde = { version = "1.0.228", features = ["derive"] }
+argon2 = "0.5.3"
