@@ -22,10 +22,10 @@ pub async fn signup(
   let user = create_user(&pool, &payload.email, &password_hash)
     .await
     .map_err(|e| {
-      if let Some(db_err) = e.as_database_error() {
-        if db_err.is_unique_violation() {
-          return (StatusCode::CONFLICT, "User already exists".to_string());
-        }
+      if let Some(db_err) = e.as_database_error()
+        && db_err.is_unique_violation()
+      {
+        return (StatusCode::CONFLICT, "User already exists".to_string());
       }
       (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
     })?;
