@@ -66,7 +66,7 @@ pub async fn get_datasource_by_id(
 
 struct Metadata {
   file_type: DatasourceType,
-  header: Option<String>,
+  header: Option<bool>,
 }
 
 struct FileUploadRequest {
@@ -99,10 +99,15 @@ fn parse_metadata(metadata: Value) -> Result<Metadata, (StatusCode, String)> {
     }
   };
 
-  let mut header: Option<String> = None;
+  let mut header: Option<bool> = None;
   if file_type == DatasourceType::Csv {
     header = match metadata.get("header") {
-      Some(val) => Some(val.to_string()),
+      Some(val) => Some(val.to_string().trim_matches('"').parse().map_err(|_| {
+        (
+          StatusCode::BAD_REQUEST,
+          "Cannot convert 'header' field to boolean".to_string(),
+        )
+      })?),
       None => {
         return Err((
           StatusCode::BAD_REQUEST,
@@ -195,12 +200,8 @@ fn create_pipeline(metadata: &Metadata) -> Result<Value, String> {
   });
 
   if metadata.file_type == DatasourceType::Csv {
-    if let Some(header) = metadata.header.as_deref() {
-      let header_bool: bool = header
-        .trim_matches('"')
-        .parse()
-        .map_err(|_| format!("Invalid 'header' value: {}", header))?;
-      pipeline["header"] = json!(header_bool);
+    if let Some(header) = metadata.header {
+      pipeline["header"] = json!(header);
     }
   }
 
