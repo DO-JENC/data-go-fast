@@ -217,6 +217,7 @@ async fn add_file_to_s3(
   s3_instance: &S3Instance,
   file_content: &Bytes,
   file_uuid: &Uuid,
+  file_format: &DatasourceType,
   group: &Uuid,
 ) -> Result<ResponseData, S3Error> {
   let mut bucket: Box<Bucket> = Bucket::new(
@@ -229,7 +230,10 @@ async fn add_file_to_s3(
   // Add file to S3 bucket
   bucket.set_path_style();
   bucket
-    .put_object(format!("/{}/{}.csv", group, file_uuid), file_content)
+    .put_object(
+      format!("/{}/{}.{:?}", group, file_uuid, file_format).to_lowercase(),
+      file_content,
+    )
     .await
 }
 
@@ -294,8 +298,14 @@ pub async fn csv_ingestion_handler(
 
   // Upload file to S3 Bucket
   let s3_instance: S3Instance = state.s3_instance;
-  let file_to_s3: Result<ResponseData, S3Error> =
-    add_file_to_s3(&s3_instance, &file_content, &file_uuid, &group).await;
+  let file_to_s3: Result<ResponseData, S3Error> = add_file_to_s3(
+    &s3_instance,
+    &file_content,
+    &file_uuid,
+    &metadata.file_type,
+    &group,
+  )
+  .await;
 
   if let Err(e) = file_to_s3 {
     return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
