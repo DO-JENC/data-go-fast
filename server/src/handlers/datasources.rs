@@ -64,11 +64,58 @@ pub async fn get_datasource_by_id(
   }
 }
 
+struct Metadata {
+  file_type: DatasourceType,
+  header: Option<String>,
+}
+
 struct FileUploadRequest {
   file_content: Bytes,
   file_name: String,
   file_size: f64,
-  metadata: Value,
+  metadata: Metadata,
+}
+
+fn parse_metadata(metadata: Value) -> Result<Metadata, (StatusCode, String)> {
+  let file_type: DatasourceType = match metadata.get("type") {
+    Some(val) => {
+      let clean = val.as_str().unwrap_or("").trim_matches('"');
+      match DatasourceType::from_str(&clean.to_string()) {
+        Ok(t) => t,
+        Err(_) => {
+          return Err((
+            StatusCode::BAD_REQUEST,
+            format!("Invalid 'type' value: {}", val),
+          ));
+        }
+      }
+    }
+
+    None => {
+      return Err((
+        StatusCode::BAD_REQUEST,
+        "Missing 'type' field in metadata".to_string(),
+      ));
+    }
+  };
+
+  let mut header: Option<String> = None;
+  if file_type == DatasourceType::Csv {
+    header = match metadata.get("header") {
+      Some(val) => Some(val.to_string()),
+      None => {
+        return Err((
+          StatusCode::BAD_REQUEST,
+          "Missing 'header' field in metadata".to_string(),
+        ));
+      }
+    };
+  }
+
+  Ok(Metadata {
+    file_type: file_type,
+    header: header,
+  })
 }
 
 async fn parse_multipart(
@@ -131,11 +178,13 @@ async fn parse_multipart(
   ))?;
   let file_size: f64 = file_content.len() as f64 / (1024.0 * 1024.0); // Convert bytes to MB
 
+  let parsed_metadata = parse_metadata(metadata)?;
+
   Ok(FileUploadRequest {
     file_content,
     file_name,
     file_size,
-    metadata,
+    metadata: parsed_metadata,
   })
 }
 
@@ -209,43 +258,11 @@ pub async fn csv_ingestion_handler(
     Err(e) => return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)),
   };
 
-  // Initiate ingest job pipeline
-  let file_type: DatasourceType = match metadata.get("type") {
-    Some(val) => {
-      let clean = val.as_str().unwrap_or("").trim_matches('"');
-      match DatasourceType::from_str(&clean.to_string()) {
-        Ok(t) => t,
-        Err(_) => {
-          return (
-            StatusCode::BAD_REQUEST,
-            format!("Invalid 'type' value: {}", val),
-          );
-        }
-      }
-    }
-
-    None => {
-      return (
-        StatusCode::BAD_REQUEST,
-        "Missing 'type' field in metadata".to_string(),
-      );
-    }
-  };
-
-  let header: &Value = match metadata.get("header") {
-    Some(val) => val,
-    None => {
-      return (
-        StatusCode::BAD_REQUEST,
-        "Missing 'header' field in metadata".to_string(),
-      );
-    }
-  };
-
+  // Define pipeline
   let pipeline: Value = json!([{
       "op": "ingest",
-      "type": file_type,
-      "header": header,
+      "type": metadata.file_type,
+      "header": metadata.header,
   }]);
 
   // Make sure file is a correct CSV
@@ -280,7 +297,7 @@ pub async fn csv_ingestion_handler(
     &file_uuid,
     &datasource_s3_id,
     &file_name,
-    &file_type,
+    &metadata.file_type,
     &file_size,
     &group,
   )
