@@ -80,7 +80,7 @@ fn parse_metadata(metadata: Value) -> Result<Metadata, (StatusCode, String)> {
   let file_type: DatasourceType = match metadata.get("type") {
     Some(val) => {
       let clean = val.as_str().unwrap_or("").trim_matches('"');
-      match DatasourceType::from_str(&clean.to_string()) {
+      match DatasourceType::from_str(&clean) {
         Ok(t) => t,
         Err(_) => {
           return Err((
@@ -117,10 +117,7 @@ fn parse_metadata(metadata: Value) -> Result<Metadata, (StatusCode, String)> {
     };
   }
 
-  Ok(Metadata {
-    file_type: file_type,
-    header: header,
-  })
+  Ok(Metadata { file_type, header })
 }
 
 async fn parse_multipart(
@@ -199,13 +196,13 @@ fn create_pipeline(metadata: &Metadata) -> Result<Value, String> {
       "type": metadata.file_type,
   });
 
-  if metadata.file_type == DatasourceType::Csv {
-    if let Some(header) = metadata.header {
-      pipeline["header"] = json!(header);
-    }
+  if metadata.file_type == DatasourceType::Csv
+    && let Some(header) = metadata.header
+  {
+    pipeline["header"] = json!(header);
   }
 
-  return Ok(json!([pipeline]));
+  Ok(json!([pipeline]))
 }
 
 fn validate_csv(content: &Bytes) -> Result<(), String> {
