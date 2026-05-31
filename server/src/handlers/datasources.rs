@@ -198,6 +198,21 @@ fn validate_csv(content: &Bytes) -> Result<(), String> {
   Ok(())
 }
 
+fn validate_json(content: &Bytes) -> Result<(), String> {
+  let content_string =
+    str::from_utf8(content).map_err(|e| format!("Cannot parse JSON: {:?}", e))?;
+  serde_json::from_str::<Value>(content_string)
+    .map(|_| ())
+    .map_err(|e| format!("Invalid JSON: {:?}", e))
+}
+
+fn validate_file_format(content: &Bytes, file_type: &DatasourceType) -> Result<(), String> {
+  match file_type {
+    DatasourceType::Csv => validate_csv(content),
+    DatasourceType::Json => validate_json(content),
+  }
+}
+
 async fn add_file_to_s3(
   s3_instance: &S3Instance,
   file_content: &Bytes,
@@ -265,8 +280,8 @@ pub async fn csv_ingestion_handler(
       "header": metadata.header,
   }]);
 
-  // Make sure file is a correct CSV
-  if let Err(e) = validate_csv(&file_content) {
+  // Make sure file is correctly formatted
+  if let Err(e) = validate_file_format(&file_content, &metadata.file_type) {
     return (StatusCode::UNSUPPORTED_MEDIA_TYPE, e);
   }
 
