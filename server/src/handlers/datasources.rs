@@ -80,7 +80,7 @@ fn parse_metadata(metadata: Value) -> Result<Metadata, (StatusCode, String)> {
   let file_type: DatasourceType = match metadata.get("type") {
     Some(val) => {
       let clean = val.as_str().unwrap_or("").trim_matches('"');
-      match DatasourceType::from_str(&clean) {
+      match DatasourceType::from_str(clean) {
         Ok(t) => t,
         Err(_) => {
           return Err((
