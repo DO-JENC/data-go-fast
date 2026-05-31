@@ -5,11 +5,12 @@ use axum::{
   http::StatusCode,
   response::IntoResponse,
 };
-use common::infra::database::datasource::Datasource;
+use common::infra::database::datasource::{Datasource, DatasourceType};
 use csv::Reader;
 use s3::{Bucket, error::S3Error, request::ResponseData};
 use serde_json::{Value, json};
 use sqlx::{Error, Pool, Postgres, postgres::PgRow, query};
+use std::str::FromStr;
 use uuid::Uuid;
 
 use crate::AppState;
@@ -173,6 +174,7 @@ async fn add_datasource_to_postgres(
   file_uuid: &Uuid,
   datasource_s3_id: &str,
   file_name: &str,
+  file_type: &DatasourceType,
   file_size: &f64,
   group: &Uuid,
 ) -> Result<PgRow, Error> {
@@ -180,11 +182,12 @@ async fn add_datasource_to_postgres(
     "
   INSERT INTO
   datasources (id, s3_id, name, file_type, size, group_id)
-  VALUES ($1, $2, $3, 'csv', $4, $5 ) RETURNING *;",
+  VALUES ($1, $2, $3, $4, $5, $6 ) RETURNING *;",
   )
   .bind(file_uuid)
   .bind(datasource_s3_id)
   .bind(file_name)
+  .bind(file_type)
   .bind(file_size)
   .bind(group)
   .fetch_one(pool)
@@ -207,8 +210,20 @@ pub async fn csv_ingestion_handler(
   };
 
   // Initiate ingest job pipeline
-  let file_type: &Value = match metadata.get("type") {
-    Some(val) => val,
+  let file_type: DatasourceType = match metadata.get("type") {
+    Some(val) => {
+      let clean = val.as_str().unwrap_or("").trim_matches('"');
+      match DatasourceType::from_str(&clean.to_string()) {
+        Ok(t) => t,
+        Err(_) => {
+          return (
+            StatusCode::BAD_REQUEST,
+            format!("Invalid 'type' value: {}", val),
+          );
+        }
+      }
+    }
+
     None => {
       return (
         StatusCode::BAD_REQUEST,
@@ -265,6 +280,7 @@ pub async fn csv_ingestion_handler(
     &file_uuid,
     &datasource_s3_id,
     &file_name,
+    &file_type,
     &file_size,
     &group,
   )
