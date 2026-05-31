@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use sqlx::Type;
+use std::str::FromStr;
 use uuid::Uuid;
 
 #[derive(Type, Serialize, Deserialize, Debug, Clone)]
@@ -9,6 +10,18 @@ use uuid::Uuid;
 pub enum DatasourceType {
   Csv,
   Json,
+}
+
+impl FromStr for DatasourceType {
+  type Err = String;
+
+  fn from_str(s: &str) -> Result<DatasourceType, Self::Err> {
+    match s.to_lowercase().as_str() {
+      "csv" => Ok(DatasourceType::Csv),
+      "json" => Ok(DatasourceType::Json),
+      _ => Err(format!("Unknown file type: {}", s)),
+    }
+  }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
