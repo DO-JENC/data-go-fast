@@ -188,6 +188,25 @@ async fn parse_multipart(
   })
 }
 
+fn create_pipeline(metadata: &Metadata) -> Result<Value, String> {
+  let mut pipeline: Value = json!({
+      "op": "ingest",
+      "type": metadata.file_type,
+  });
+
+  if metadata.file_type == DatasourceType::Csv {
+    if let Some(header) = metadata.header.as_deref() {
+      let header_bool: bool = header
+        .trim_matches('"')
+        .parse()
+        .map_err(|_| format!("Invalid 'header' value: {}", header))?;
+      pipeline["header"] = json!(header_bool);
+    }
+  }
+
+  return Ok(json!([pipeline]));
+}
+
 fn validate_csv(content: &Bytes) -> Result<(), String> {
   let mut reader = Reader::from_reader(content.as_ref());
 
@@ -278,11 +297,10 @@ pub async fn csv_ingestion_handler(
   };
 
   // Define pipeline
-  let pipeline: Value = json!([{
-      "op": "ingest",
-      "type": metadata.file_type,
-      "header": metadata.header,
-  }]);
+  let pipeline: Value = match create_pipeline(&metadata) {
+    Ok(pipeline) => pipeline,
+    Err(e) => return (StatusCode::BAD_REQUEST, e),
+  };
 
   // Make sure file is correctly formatted
   if let Err(e) = validate_file_format(&file_content, &metadata.file_type) {
