@@ -1,3 +1,5 @@
+use apalis_core::request::Parts;
+use apalis_redis::{RedisContext, RedisStorage};
 use axum::{
   Json,
   body::Bytes,
@@ -6,6 +8,7 @@ use axum::{
   response::IntoResponse,
 };
 use common::infra::database::datasource::{Datasource, DatasourceType};
+use common::queue::models::{Job, Pipeline};
 use csv::Reader;
 use s3::{Bucket, error::S3Error, request::ResponseData};
 use serde_json::{Value, json};
@@ -303,8 +306,24 @@ pub async fn csv_ingestion_handler(
     Err(e) => return (StatusCode::BAD_REQUEST, e),
   };
 
-  // Make sure file is correctly formatted
-  if let Err(e) = validate_file_format(&file_content, &metadata.file_type) {
+  let header: &Value = match metadata.get("header") {
+    Some(val) => val,
+    None => {
+      return (
+        StatusCode::BAD_REQUEST,
+        "Missing 'header' field in metadata".to_string(),
+      );
+    }
+  };
+
+  let pipeline: Pipeline = Pipeline {
+    op: "ingest".into(),
+    r#type: file_type.to_string().into(),
+    header: header.to_string().into(),
+  };
+
+  // Make sure file is a correct CSV
+  if let Err(e) = validate_csv(&file_content) {
     return (StatusCode::UNSUPPORTED_MEDIA_TYPE, e);
   }
 
@@ -355,8 +374,15 @@ pub async fn csv_ingestion_handler(
   let job_name: String = format!("Ingestion of {}", &file_name);
 
   // Add ingest job to Redis
-  let ingest_job_to_redis: Result<(), redis::RedisError> =
-    add_job_to_redis(&pipeline, &job_uuid, &job_name, &datasource_s3_id).await;
+  let redis_conn: RedisStorage<Job> = state.storage;
+  let ingest_job_to_redis: Result<Parts<RedisContext>, Error> = add_job_to_redis(
+    &redis_conn,
+    &pipeline,
+    &job_uuid,
+    &job_name,
+    &datasource_s3_id,
+  )
+  .await;
 
   if let Err(e) = ingest_job_to_redis {
     return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
