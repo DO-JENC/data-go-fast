@@ -9,7 +9,6 @@ pub async fn get_queue_storage() -> RedisStorage<Job, ConnectionManager> {
     .await
     .expect("Could not connect");
   let config = Config::default().set_namespace("data-go-fast");
-  let storage = RedisStorage::new_with_config(conn, config);
 
-  return storage;
+  RedisStorage::new_with_config(conn, config)
 }
