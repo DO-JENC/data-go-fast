@@ -3,9 +3,6 @@ use apalis::prelude::*;
 use apalis_core::request::Parts;
 use apalis_redis::{RedisContext, RedisStorage};
 use common::queue::models::{Job, Pipeline};
-use redis::{Client, JsonAsyncCommands, RedisResult, aio::MultiplexedConnection};
-use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
 use sqlx::{Error, Pool, Postgres, postgres::PgRow, query, types::Json};
 use uuid::Uuid;
 
