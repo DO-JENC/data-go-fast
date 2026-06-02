@@ -318,7 +318,7 @@ pub async fn csv_ingestion_handler(
 
   let pipeline: Pipeline = Pipeline {
     op: "ingest".into(),
-    r#type: file_type.to_string().into(),
+    r#type: file_type.to_string(),
     header: header.to_string().into(),
   };
 
