@@ -1,4 +1,3 @@
-use crate::AppState;
 use apalis::prelude::*;
 use apalis_core::request::Parts;
 use apalis_redis::{RedisContext, RedisStorage};
