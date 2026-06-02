@@ -9,7 +9,7 @@ use common::infra::database::datasource::{Datasource, DatasourceType};
 use csv::Reader;
 use s3::{Bucket, error::S3Error, request::ResponseData};
 use serde_json::{Value, json};
-use sqlx::{Error, Pool, Postgres, postgres::PgRow, query};
+use sqlx::{Error, Pool, Postgres, Row, postgres::PgRow, query};
 use std::str::FromStr;
 use uuid::Uuid;
 
@@ -371,4 +371,98 @@ pub async fn csv_ingestion_handler(
   };
 
   (StatusCode::OK, "Upload file successful.".to_string())
+}
+
+pub async fn delete_datasource_by_id(
+  State(state): State<AppState>,
+  Path(id): Path<Uuid>,
+) -> impl IntoResponse {
+  // TODO: authentication and authorization checks should be implemented here
+
+  let datasource = match fetch_datasource(&state.pool, &id).await {
+    Ok(Some(ds)) => ds,
+    Ok(None) => return (StatusCode::NOT_FOUND, "Datasource not found".to_string()),
+    Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+  };
+
+  // Check active jobs
+  let has_active_jobs = match query(
+    "SELECT EXISTS(
+      SELECT 1 FROM jobs j
+      JOIN job_datasources jd ON j.id = jd.job_id
+      WHERE jd.datasource_id = $1 AND j.status IN ('pending', 'running')
+    ) as is_active",
+  )
+  .bind(id)
+  .fetch_one(&state.pool)
+  .await
+  {
+    Ok(row) => row.get::<bool, _>("is_active"),
+    Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+  };
+
+  if has_active_jobs {
+    return (
+      StatusCode::CONFLICT,
+      "Cannot delete datasource with active jobs".to_string(),
+    );
+  }
+
+  // Delete from S3
+  if let Err(e) = delete_file_from_s3(
+    &state.s3_instance,
+    &id,
+    &datasource
+      .group_id
+      .expect("Datasource must have a group_id"),
+  )
+  .await
+  {
+    return (
+      StatusCode::INTERNAL_SERVER_ERROR,
+      format!("S3 deletion failed: {:?}", e),
+    );
+  }
+
+  // Delete from Postgres
+  if let Err(e) = delete_datasource_from_postgres(&state.pool, &id).await {
+    return (
+      StatusCode::INTERNAL_SERVER_ERROR,
+      format!("Database deletion failed: {:?}", e),
+    );
+  }
+
+  (
+    StatusCode::OK,
+    "Datasource deleted successfully".to_string(),
+  )
+}
+
+pub async fn delete_datasource_from_postgres(
+  pool: &Pool<Postgres>,
+  id: &Uuid,
+) -> Result<(), Error> {
+  query(" DELETE FROM datasources WHERE id = $1;")
+    .bind(id)
+    .execute(pool)
+    .await
+    .map(|_| ())
+}
+
+pub async fn delete_file_from_s3(
+  s3_instance: &S3Instance,
+  file_uuid: &Uuid,
+  group: &Uuid,
+) -> Result<(), S3Error> {
+  let mut bucket: Box<Bucket> = Bucket::new(
+    &s3_instance.bucket_name,
+    s3_instance.region.clone(),
+    s3_instance.credentials.clone(),
+  )
+  .unwrap();
+  bucket.set_path_style();
+  bucket
+    .delete_object(format!("/{}/{}.csv", group, file_uuid))
+    .await
+    .map(|_| ())
 }
