@@ -40,24 +40,27 @@ pub async fn get_all_datasources(
   }
 }
 
+async fn fetch_datasource(
+  db_pool: &Pool<Postgres>,
+  id: &Uuid,
+) -> Result<Option<Datasource>, sqlx::Error> {
+  // TODO: authentication and authorization checks should be implemented here
+
+  sqlx::query_as::<_, Datasource>(
+    "SELECT id, s3_id, name, file_type, size, created_at, group_id FROM datasources WHERE id = $1",
+  )
+  .bind(id)
+  .fetch_optional(db_pool)
+  .await
+}
+
 pub async fn get_datasource_by_id(
   State(state): State<AppState>,
   Path(id): Path<Uuid>,
 ) -> Result<Json<Datasource>, (StatusCode, String)> {
   // TODO: authentication and authorization checks should be implemented here
 
-  let query = r#"
-        SELECT id, s3_id, name, file_type, size, created_at, group_id
-        FROM datasources
-        WHERE id = $1
-  "#;
-
-  let datasource = sqlx::query_as::<_, Datasource>(query)
-    .bind(id)
-    .fetch_optional(&state.pool)
-    .await;
-
-  match datasource {
+  match fetch_datasource(&state.pool, &id).await {
     Ok(Some(dt)) => Ok(Json(dt)),
     Ok(None) => Err((StatusCode::NOT_FOUND, "Datasource not found".to_string())),
     Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
