@@ -1,7 +1,18 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import type { Datasource } from "@/types/datasource"
-import { ChevronDown, FileJson, FileSpreadsheet } from "lucide-react"
+import { ChevronDown, FileJson, FileSpreadsheet, Trash2 } from "lucide-react"
 import { useState } from "react"
 
 function formatSize(bytes: number): string {
@@ -31,8 +42,10 @@ function FileTypeIcon({ type }: { type: string | null }) {
 
 export default function DatasourceCard({
   datasource,
+  onDelete,
 }: {
   datasource: Datasource
+  onDelete: (id: string) => Promise<boolean>
 }) {
   const [open, setOpen] = useState(false)
 
@@ -60,6 +73,42 @@ export default function DatasourceCard({
                 {datasource.file_type}
               </span>
             )}
+            <AlertDialog>
+              <AlertDialogTrigger
+                onClick={(e) => e.stopPropagation()}
+                className="cursor-pointer text-muted-foreground transition-colors hover:text-red-600"
+              >
+                <Trash2 className="size-4" />
+              </AlertDialogTrigger>
+              <AlertDialogContent className="border-2 border-orange-500 ring-0 bg-white gap-2">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Are you sure you want to delete this datasource?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-center sm:text-center">
+                    This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={(e) => e.stopPropagation()}>
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    className="cursor-pointer bg-orange-500 text-white hover:bg-purple-600"
+                    onClick={async (e) => {
+                      e.stopPropagation()
+                      try {
+                        await onDelete(datasource.id)
+                      } catch {
+                        // error is handled by the hook
+                      }
+                    }}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <ChevronDown
               className={cn(
                 "size-4 transition-transform",

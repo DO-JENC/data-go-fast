@@ -17,5 +17,15 @@ export function useDatasources() {
       .finally(() => setLoading(false))
   }, [])
 
-  return { datasources, loading, error }
+  async function removeDatasource(id: string): Promise<boolean> {
+    const res = await fetch(`/api/datasources/${id}`, { method: "DELETE" })
+    if (!res.ok) {
+      const msg = await res.text()
+      throw new Error(msg || `Erreur ${res.status}`)
+    }
+    setDatasources((prev) => prev.filter((ds) => ds.id !== id))
+    return true
+  }
+
+  return { datasources, loading, error, removeDatasource }
 }
