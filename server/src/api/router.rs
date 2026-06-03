@@ -29,6 +29,7 @@ fn users_router() -> Router<AppState> {
     .route("/", get(|| async { StatusCode::NOT_IMPLEMENTED }))
     .route("/{id}", get(|| async { StatusCode::NOT_IMPLEMENTED }))
 }
+
 pub fn router(state: AppState) -> Router {
   Router::new()
     .route("/health", get(|| async { StatusCode::OK }))

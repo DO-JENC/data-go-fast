@@ -1,3 +1,4 @@
+use crate::AppState;
 use crate::infra::database::user::create_user;
 use crate::models::user::{SignupRequest, UserResponse};
 use argon2::{
@@ -5,10 +6,9 @@ use argon2::{
   password_hash::{PasswordHasher, SaltString, rand_core::OsRng},
 };
 use axum::{Json, extract::State, http::StatusCode};
-use sqlx::PgPool;
 
 pub async fn signup(
-  State(pool): State<PgPool>,
+  State(pool): State<AppState>,
   Json(payload): Json<SignupRequest>,
 ) -> Result<(StatusCode, Json<UserResponse>), (StatusCode, String)> {
   let salt = SaltString::generate(&mut OsRng);
@@ -19,7 +19,7 @@ pub async fn signup(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
     .to_string();
 
-  let user = create_user(&pool, &payload.email, &password_hash)
+  let user = create_user(&pool.pool, &payload.email, &password_hash)
     .await
     .map_err(|e| {
       if let Some(db_err) = e.as_database_error()
