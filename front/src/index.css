@@ -4,7 +4,7 @@
 @import "@fontsource-variable/inter";
 
 /* optionnal styling  / reference values */
-:root { 
+:root {
   --text: #2d2d2a;
   --text-h: #08060d;
   --bg: #f2efea;
@@ -50,10 +50,10 @@
   --destructive: oklch(0.577 0.245 27.325); */
   --input: #e6e2d8;
   --radius: 0.625rem;
-  --sidebar:  #f2efea;
+  --sidebar: #f2efea;
   --sidebar-foreground: oklch(0.145 0.008 326);
   --sidebar-primary: oklch(0.591 0.293 322.896);
-  --sidebar-primary-foreground:  #f2efea;
+  --sidebar-primary-foreground: #f2efea;
   --sidebar-accent: #e6e2d8;
   --sidebar-accent-foreground: oklch(0.212 0.019 322.12);
   --sidebar-border: #e6e2d8;
@@ -81,7 +81,6 @@
 }
 
 #root {
-
   text-align: center;
   border-inline: 1px solid #f2efea;
   min-height: 100svh;

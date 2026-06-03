@@ -1,7 +1,7 @@
-import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
-import Signup from "@/pages/Signup.tsx"
+import { Header } from "@/components/layout/header"
 import Datasources from "@/pages/Datasources"
+import Signup from "@/pages/Signup.tsx"
 import { BrowserRouter, Route, Routes } from "react-router-dom"
 import "./App.css"
 
