@@ -3,7 +3,7 @@ import HistoryPanel from "@/components/datasources/history-panel"
 import { useDatasources } from "@/hooks/use-datasources"
 
 export default function Datasources() {
-  const { datasources, loading, error } = useDatasources()
+  const { datasources, loading, error, removeDatasource } = useDatasources()
 
   return (
     <div className="flex min-h-0 flex-1 gap-6 p-6 text-left">
@@ -23,7 +23,11 @@ export default function Datasources() {
         {!loading &&
           !error &&
           datasources.map((ds) => (
-            <DatasourceCard key={ds.id} datasource={ds} />
+            <DatasourceCard
+              key={ds.id}
+              datasource={ds}
+              onDelete={removeDatasource}
+            />
           ))}
         {!loading && !error && datasources.length === 0 && (
           <p className="text-sm text-muted-foreground">
