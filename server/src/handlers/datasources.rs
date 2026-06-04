@@ -106,7 +106,6 @@ fn parse_metadata(metadata: Value) -> Result<Metadata, (StatusCode, String)> {
   };
 
   let mut header: Option<String> = None;
-  println!("file_type: {:?}", file_type);
   if file_type == DatasourceType::Csv {
     header = match metadata.get("header") {
       Some(val) => Some(val.to_string().trim_matches('"').parse().map_err(|_| {
