@@ -11,7 +11,7 @@ use common::infra::database::datasource::{Datasource, DatasourceType};
 use common::queue::models::{Job, Pipeline};
 use csv::Reader;
 use s3::{Bucket, error::S3Error, request::ResponseData};
-use serde_json::{Value, json};
+use serde_json::Value;
 use sqlx::{Error, Pool, Postgres, Row, postgres::PgRow, query};
 use std::str::FromStr;
 use uuid::Uuid;
