@@ -14,12 +14,33 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { useAuth } from "@/hooks/use-auth"
 import { Eye, EyeOff, Lock, Mail } from "lucide-react"
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 
 export function SignupForm() {
+  const { signup, loading, error } = useAuth()
+  const [password, setPassword] = useState("")
+  const [email, setEmail] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const navigate = useNavigate()
+
+  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
+    e.preventDefault()
+
+    if (password != confirmPassword) {
+      alert("Passwords do not match")
+      return
+    }
+
+    const success = await signup({ email, password })
+    if (success) {
+      navigate("/datasources")
+    }
+  }
 
   return (
     <Card className="mx-auto w-full max-w-md bg-white shadow-sm transition-shadow hover:shadow-md">
@@ -34,7 +55,7 @@ export function SignupForm() {
         </div>
       </CardHeader>
       <CardContent>
-        <form onSubmit={(e) => e.preventDefault()} className="grid gap-6">
+        <form onSubmit={(e) => handleSubmit(e)} className="grid gap-6">
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="email">Email address</FieldLabel>
@@ -43,6 +64,8 @@ export function SignupForm() {
                 <Input
                   id="email"
                   type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@example.com"
                   required
                   className="pl-10 focus-visible:ring-[#8828ad]/50"
@@ -57,6 +80,8 @@ export function SignupForm() {
                   <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     type={showPassword ? "text" : "password"}
                     required
                     className="px-10 focus-visible:ring-[#8828ad]/50"
@@ -81,6 +106,8 @@ export function SignupForm() {
                   <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="confirm-password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
                     type={showConfirmPassword ? "text" : "password"}
                     required
                     className="px-10 focus-visible:ring-[#8828ad]/50"
@@ -108,10 +135,11 @@ export function SignupForm() {
 
             <Button
               type="submit"
+              disabled={loading}
               className="w-full bg-[#8828ad] text-white shadow-sm transition-all hover:bg-[#8828ad]/90 active:scale-[0.98]"
               size="lg"
             >
-              Create Account
+              {loading ? "Creating account..." : "Create account"}
             </Button>
           </FieldGroup>
         </form>
