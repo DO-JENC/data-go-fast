@@ -296,16 +296,6 @@ pub async fn csv_ingestion_handler(
     Err(e) => return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)),
   };
 
-  // let header:bool  = match metadata.header {
-  //   Some(val) => val,
-  //   None => {
-  //     return (
-  //       StatusCode::BAD_REQUEST,
-  //       "Missing 'header' field in metadata".to_string(),
-  //     );
-  //   }
-  // };
-
   let pipeline = match create_pipeline(&metadata) {
     Ok(p) => p,
     Err(e) => {
