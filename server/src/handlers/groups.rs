@@ -13,14 +13,16 @@ pub async fn create_group_handler(
   State(state): State<AppState>,
   Json(payload): Json<CreateGroupRequest>,
 ) -> Result<(StatusCode, Json<GroupResponse>), (StatusCode, String)> {
-  let group = create_group(&state.pool, &payload.name).await.map_err(|e| {
-    if let Some(db_err) = e.as_database_error()
-      && db_err.is_unique_violation()
-    {
-      return (StatusCode::CONFLICT, "Group already exists".to_string());
-    }
-    (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-  })?;
+  let group = create_group(&state.pool, &payload.name)
+    .await
+    .map_err(|e| {
+      if let Some(db_err) = e.as_database_error()
+        && db_err.is_unique_violation()
+      {
+        return (StatusCode::CONFLICT, "Group already exists".to_string());
+      }
+      (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+    })?;
 
   Ok((StatusCode::CREATED, Json(GroupResponse::from(group))))
 }
