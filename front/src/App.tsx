@@ -1,5 +1,6 @@
 import { Footer } from "@/components/layout/footer"
 import { Header } from "@/components/layout/header"
+import { Toaster } from "@/components/ui/sonner"
 import Datasources from "@/pages/Datasources"
 import Signup from "@/pages/Signup.tsx"
 import { BrowserRouter, Route, Routes } from "react-router-dom"
@@ -16,6 +17,7 @@ function App() {
           <Route path="/datasources" element={<Datasources />} />
         </Routes>
       </main>
+      <Toaster />
       <Footer />
     </BrowserRouter>
   )
