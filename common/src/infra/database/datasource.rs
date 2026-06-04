@@ -5,7 +5,7 @@ use sqlx::Type;
 use std::str::FromStr;
 use uuid::Uuid;
 
-#[derive(Type, Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Type, Serialize, Deserialize, Debug, Clone, PartialEq, Copy)]
 #[sqlx(type_name = "datasource_type", rename_all = "lowercase")]
 pub enum DatasourceType {
   Csv,
