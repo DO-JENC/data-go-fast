@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { Eye, EyeOff, Lock, Mail } from "lucide-react"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { toast } from "sonner"
 
 export function SignupForm() {
   const { signup, loading, error } = useAuth()
@@ -32,7 +33,7 @@ export function SignupForm() {
     e.preventDefault()
 
     if (password != confirmPassword) {
-      alert("Passwords do not match")
+      toast.error("Passwords do not match")
       return
     }
 
