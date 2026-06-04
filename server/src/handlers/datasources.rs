@@ -72,7 +72,7 @@ pub async fn get_datasource_by_id(
 
 struct Metadata {
   file_type: DatasourceType,
-  header: Option<bool>,
+  header: Option<String>,
 }
 
 struct FileUploadRequest {
@@ -105,7 +105,8 @@ fn parse_metadata(metadata: Value) -> Result<Metadata, (StatusCode, String)> {
     }
   };
 
-  let mut header: Option<bool> = None;
+  let mut header: Option<String> = None;
+  println!("file_type: {:?}", file_type);
   if file_type == DatasourceType::Csv {
     header = match metadata.get("header") {
       Some(val) => Some(val.to_string().trim_matches('"').parse().map_err(|_| {
@@ -196,19 +197,14 @@ async fn parse_multipart(
   })
 }
 
-fn create_pipeline(metadata: &Metadata) -> Result<Value, String> {
-  let mut pipeline: Value = json!({
-      "op": "ingest",
-      "type": metadata.file_type,
-  });
+fn create_pipeline(metadata: &Metadata) -> Result<Pipeline, String> {
+  let pipeline: Pipeline = Pipeline {
+    op: "ingest".to_string(),
+    r#type: metadata.file_type,
+    header: metadata.header.clone(),
+  };
 
-  if metadata.file_type == DatasourceType::Csv
-    && let Some(header) = metadata.header
-  {
-    pipeline["header"] = json!(header);
-  }
-
-  Ok(json!([pipeline]))
+  Ok(pipeline)
 }
 
 fn validate_csv(content: &Bytes) -> Result<(), String> {
@@ -300,30 +296,28 @@ pub async fn csv_ingestion_handler(
     Err(e) => return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)),
   };
 
-  // Define pipeline
-  let pipeline: Value = match create_pipeline(&metadata) {
-    Ok(pipeline) => pipeline,
-    Err(e) => return (StatusCode::BAD_REQUEST, e),
-  };
+  // let header:bool  = match metadata.header {
+  //   Some(val) => val,
+  //   None => {
+  //     return (
+  //       StatusCode::BAD_REQUEST,
+  //       "Missing 'header' field in metadata".to_string(),
+  //     );
+  //   }
+  // };
 
-  let header: &Value = match metadata.get("header") {
-    Some(val) => val,
-    None => {
+  let pipeline = match create_pipeline(&metadata) {
+    Ok(p) => p,
+    Err(e) => {
       return (
         StatusCode::BAD_REQUEST,
-        "Missing 'header' field in metadata".to_string(),
+        format!("Error creating pipeline: {}", e),
       );
     }
   };
 
-  let pipeline: Pipeline = Pipeline {
-    op: "ingest".into(),
-    r#type: file_type.to_string(),
-    header: header.to_string().into(),
-  };
-
-  // Make sure file is a correct CSV
-  if let Err(e) = validate_csv(&file_content) {
+  // Make sure file is a correct format
+  if let Err(e) = validate_file_format(&file_content, &metadata.file_type) {
     return (StatusCode::UNSUPPORTED_MEDIA_TYPE, e);
   }
 

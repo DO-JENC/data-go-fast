@@ -1,3 +1,4 @@
+use crate::infra::database::datasource::DatasourceType;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -14,6 +15,6 @@ pub struct Job {
 
 pub struct Pipeline {
   pub op: String,
-  pub r#type: String,
+  pub r#type: DatasourceType,
   pub header: Option<String>,
 }
