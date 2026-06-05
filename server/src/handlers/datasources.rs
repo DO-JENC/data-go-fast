@@ -5,7 +5,7 @@ use axum::{
   http::StatusCode,
   response::IntoResponse,
 };
-use common::infra::database::datasource::{Datasource, DatasourceType};
+use common::infra::database::datasource::{Datasource, DatasourceType, create_datasource_from_s3};
 use csv::Reader;
 use s3::{Bucket, error::S3Error};
 use serde_json::Value;
@@ -305,16 +305,7 @@ pub async fn csv_ingestion_handler(
 
   // Add datasource to Postgres
   let pool: Pool<Postgres> = state.pool;
-  let datasource_to_postgres: Result<PgRow, Error> = add_datasource_to_postgres(
-    &pool,
-    &file_uuid,
-    &datasource_s3_id,
-    &file_name,
-    &metadata.file_type,
-    &file_size,
-    &group,
-  )
-  .await;
+  let datasource_to_postgres = create_datasource_from_s3(&pool, &datasource_s3_id, &file_name, &group, file_size).await;
 
   if let Err(e) = datasource_to_postgres {
     return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
