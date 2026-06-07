@@ -365,6 +365,7 @@ dependencies = [
  "dotenvy",
  "rust-s3",
  "serde",
+ "serde_json",
  "sqlx",
  "tokio",
  "uuid",
@@ -3418,10 +3419,14 @@ version = "0.1.0"
 dependencies = [
  "apalis",
  "apalis-redis",
+ "aws-creds",
  "common",
+ "csv",
+ "rust-s3",
  "serde",
  "serde_json",
  "tokio",
+ "uuid",
 ]
 
 [[package]]
