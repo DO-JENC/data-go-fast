@@ -1,3 +1,7 @@
+use axum::{
+  extract::FromRequestParts,
+  http::{StatusCode, request::Parts},
+};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -18,4 +22,19 @@ pub struct AuthPayload {
 pub struct AuthBody {
   pub access_token: String,
   pub token_type: String,
+}
+
+pub struct AuthenticatedUser(pub Claims);
+
+impl<S: Send + Sync> FromRequestParts<S> for AuthenticatedUser {
+  type Rejection = StatusCode;
+
+  async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+    parts
+      .extensions
+      .get::<Claims>()
+      .cloned()
+      .map(AuthenticatedUser)
+      .ok_or(StatusCode::UNAUTHORIZED)
+  }
 }
