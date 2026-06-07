@@ -1,7 +1,7 @@
 use crate::AppState;
-use crate::handlers::datasources::csv_ingestion_handler;
 use crate::handlers::datasources::*;
 use crate::handlers::groups::*;
+use crate::handlers::jobs::*;
 use crate::handlers::users::*;
 use axum::{
   Router,
@@ -19,9 +19,9 @@ fn datasources_router() -> Router<AppState> {
 
 fn jobs_router() -> Router<AppState> {
   Router::new()
-    .route("/", post(|| async { StatusCode::NOT_IMPLEMENTED }))
-    .route("/", get(|| async { StatusCode::NOT_IMPLEMENTED }))
-    .route("/{id}", get(|| async { StatusCode::NOT_IMPLEMENTED }))
+    .route("/", post(create_job_handler))
+    .route("/", get(list_jobs_handler))
+    .route("/{id}", get(get_job_by_id_handler))
 }
 
 fn users_router() -> Router<AppState> {

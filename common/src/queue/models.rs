@@ -1,5 +1,6 @@
 use crate::infra::database::datasource::DatasourceType;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -9,12 +10,27 @@ pub struct Job {
   pub name: String,
   pub pipeline: Pipeline,
   pub status: String,
+  #[serde(default)]
+  pub result_datasource_id: Option<Uuid>, // Set by the worker after running the pipeline
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+// Ordered list of operations applied sequentially to the datasource
+pub type Pipeline = Vec<Op>;
 
-pub struct Pipeline {
-  pub op: String,
-  pub r#type: DatasourceType,
-  pub header: Option<String>,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+// `tag = "op"` means the JSON key `"op"` determines which variant we deserialize to
+#[serde(tag = "op")]
+pub enum Op {
+  #[serde(rename = "ingest")]
+  Ingest {
+    r#type: DatasourceType,
+    header: Option<String>,
+  },
+
+  #[serde(rename = "filter")]
+  Filter {
+    column: String,
+    operator: String, // > , < , >= , <= , == , !=
+    value: Value,
+  },
 }

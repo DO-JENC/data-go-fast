@@ -41,7 +41,8 @@ CREATE TABLE jobs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     pipeline JSONB NOT NULL,
-    status job_status DEFAULT 'pending'
+    status job_status DEFAULT 'pending',
+    result_datasource_id UUID REFERENCES datasources(id)
 );
 
 

@@ -8,7 +8,7 @@ use axum::{
   response::IntoResponse,
 };
 use common::infra::database::datasource::{Datasource, DatasourceType};
-use common::queue::models::{Job, Pipeline};
+use common::queue::models::{Job, Op, Pipeline};
 use csv::Reader;
 use s3::{Bucket, error::S3Error, request::ResponseData};
 use serde_json::Value;
@@ -197,13 +197,10 @@ async fn parse_multipart(
 }
 
 fn create_pipeline(metadata: &Metadata) -> Result<Pipeline, String> {
-  let pipeline: Pipeline = Pipeline {
-    op: "ingest".to_string(),
+  Ok(vec![Op::Ingest {
     r#type: metadata.file_type,
     header: metadata.header.clone(),
-  };
-
-  Ok(pipeline)
+  }])
 }
 
 fn validate_csv(content: &Bytes) -> Result<(), String> {
@@ -372,7 +369,7 @@ pub async fn csv_ingestion_handler(
   };
 
   // Add ingest job to Postgres
-  let ingest_job_to_postgres: Result<PgRow, Error> =
+  let ingest_job_to_postgres: Result<(), Error> =
     add_job_to_postgres(&pool, &pipeline, &job_uuid, &job_name, &file_uuid).await;
 
   if let Err(e) = ingest_job_to_postgres {
