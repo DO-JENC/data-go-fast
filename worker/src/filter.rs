@@ -1,40 +1,11 @@
 use common::infra::s3::config::S3Instance;
-use common::queue::models::Job;
 use csv::{Reader, Writer};
 use s3::Bucket;
 use serde_json::Value;
 use uuid::Uuid;
 
-// download CSV from S3 → filter rows → upload result to S3
-
-pub async fn execute(
-  job: &Job,
-  column: &str,
-  operator: &str,
-  value: &Value,
-  s3: &S3Instance,
-) -> Result<(String, String, Uuid, f64), String> {
-  println!(
-    "Filtering column '{}' with operator '{}' and value '{}'",
-    column, operator, value
-  );
-
-  let csv_bytes = download_from_s3(s3, &job.datasource_id).await?;
-  let filtered_bytes = apply_filter(&csv_bytes, column, operator, value)?;
-  let size_mb = filtered_bytes.len() as f64 / (1024.0 * 1024.0);
-
-  let (group_uuid, _) = parse_s3_id(&job.datasource_id)?;
-  let new_s3_id = upload_to_s3(s3, &filtered_bytes, &group_uuid).await?;
-
-  let original_name = job.name.clone();
-
-  println!("Filtered CSV uploaded to: {}", new_s3_id);
-
-  Ok((new_s3_id, original_name, group_uuid, size_mb))
-}
-
 // Download raw CSV bytes from S3 (format: "s3://bucket/group-uuid/file-uuid")
-async fn download_from_s3(s3: &S3Instance, s3_id: &str) -> Result<Vec<u8>, String> {
+pub async fn download_from_s3(s3: &S3Instance, s3_id: &str) -> Result<Vec<u8>, String> {
   let (group, file) = parse_s3_id(s3_id)?;
   let key = format!("/{}/{}.csv", group, file);
 
@@ -52,7 +23,7 @@ async fn download_from_s3(s3: &S3Instance, s3_id: &str) -> Result<Vec<u8>, Strin
 }
 
 // Upload filtered CSV bytes to S3 with a new UUID
-async fn upload_to_s3(s3: &S3Instance, content: &[u8], group: &Uuid) -> Result<String, String> {
+pub async fn upload_to_s3(s3: &S3Instance, content: &[u8], group: &Uuid) -> Result<String, String> {
   let new_file_uuid = Uuid::new_v4();
   let key = format!("/{}/{}.csv", group, new_file_uuid);
 
@@ -73,7 +44,7 @@ async fn upload_to_s3(s3: &S3Instance, content: &[u8], group: &Uuid) -> Result<S
 }
 
 // Read CSV rows, keep only those matching the condition, write back as CSV
-fn apply_filter(
+pub fn apply_filter(
   content: &[u8],
   column: &str,
   operator: &str,
@@ -171,7 +142,7 @@ fn evaluate(cell: &str, operator: &str, target: &Value) -> Result<bool, String> 
   }
 }
 
-fn parse_s3_id(s3_id: &str) -> Result<(Uuid, Uuid), String> {
+pub fn parse_s3_id(s3_id: &str) -> Result<(Uuid, Uuid), String> {
   let parts: Vec<&str> = s3_id.split('/').collect();
   if parts.len() < 4 {
     return Err(format!("Invalid s3_id format: {}", s3_id));
