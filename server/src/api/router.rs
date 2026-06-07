@@ -5,7 +5,8 @@ use crate::{
     auth::{login, signup},
     datasources::*,
     groups::*,
-    jobs::{create_job_handler, list_jobs_handler, get_job_by_id_handler}
+    jobs::{create_job_handler, list_jobs_handler, get_job_by_id_handler},
+    users::get_me,
   },
 };
 
@@ -43,6 +44,7 @@ fn jobs_router() -> Router<AppState> {
 
 fn users_router() -> Router<AppState> {
   Router::new()
+    .route("/me", get(get_me))
     .route("/", get(|| async { StatusCode::NOT_IMPLEMENTED }))
     .route("/{id}", get(|| async { StatusCode::NOT_IMPLEMENTED }))
     .layer(middleware::from_fn(auth_middleware))
