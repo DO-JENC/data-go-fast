@@ -34,7 +34,7 @@ async fn job_treatment(job: Job) {
     }
   };
 
-  let (group_uuid, _) = match parse_s3_id(&job.datasource_id) {
+  let (group_uuid, _, _) = match parse_s3_id(&job.datasource_id) {
     Ok(t) => t,
     Err(e) => {
       eprintln!("Failed to parse S3 ID: {}", e);
