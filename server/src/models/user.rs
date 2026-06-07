@@ -8,12 +8,6 @@ pub struct User {
   pub hash_password: String,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct SignupRequest {
-  pub email: String,
-  pub password: String,
-}
-
 #[derive(Debug, Serialize)]
 pub struct UserResponse {
   pub id: Uuid,
