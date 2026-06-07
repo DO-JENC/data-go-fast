@@ -23,12 +23,37 @@ export function useAuth() {
       .finally(() => setInitialFetchLoading(false))
   }, [])
 
+  const login = async ({ email, password }: UserProps) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      })
+
+      if (!res.ok) {
+        throw new Error(`Error: ${res.status} - Failed to login`)
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message || "Something went wrong")
+      }
+      return null
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const signup = async ({ email, password }: UserProps) => {
     setLoading(true)
     setError(null)
 
     try {
-      const res = await fetch("/api/users/signup", {
+      const res = await fetch("/api/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -56,6 +81,7 @@ export function useAuth() {
   return {
     user,
     signup,
+    login,
     loading,
     initialFetchLoading,
     error,
