@@ -443,8 +443,7 @@ pub async fn delete_datasource_from_postgres(
 pub async fn delete_file_from_s3(s3_instance: &S3Instance, s3_id: &str) -> Result<(), S3Error> {
   let key = s3_id
     .strip_prefix("s3://")
-    .and_then(|s| s.splitn(2, '/').nth(1))
-    .map(|p| format!("/{}", p))
+    .and_then(|s| s.split_once('/').map(|(_, p)| format!("/{}", p)))
     .unwrap_or_default();
 
   let mut bucket: Box<Bucket> = Bucket::new(
