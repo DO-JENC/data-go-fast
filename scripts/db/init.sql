@@ -28,7 +28,8 @@ CREATE TABLE datasources (
     file_type datasource_type NOT NULL,
     size FLOAT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    group_id UUID REFERENCES groups(id)
+    group_id UUID REFERENCES groups(id),
+    UNIQUE(name, group_id)
 );
 
 CREATE TABLE json_table (
