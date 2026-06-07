@@ -25,6 +25,8 @@ async fn job_treatment(job: Job) {
     }
   };
 
+  let _ = update_job_status(&pool, &job.job_id, "running").await;
+
   let csv_bytes = match download_from_s3(&s3, &job.datasource_id).await {
     Ok(bytes) => bytes,
     Err(e) => {
