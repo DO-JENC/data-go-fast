@@ -1,3 +1,4 @@
+import { useAuth } from "@/hooks/use-auth"
 import "@coreui/coreui/dist/css/coreui.min.css"
 import {
   CContainer,
@@ -7,8 +8,11 @@ import {
   CNavItem,
   CNavLink,
 } from "@coreui/react"
+import { LogOut } from "lucide-react"
 
 export function Header() {
+  const { user } = useAuth()
+
   return (
     <CHeader className="py-1">
       <CContainer fluid>
@@ -22,17 +26,16 @@ export function Header() {
             data-go-fast
           </span>
         </CHeaderBrand>
+
         <CHeaderNav>
-          <CNavItem>
-            {/* TODO: Logooout behaviour */}
-            <CNavLink href="#">
-              <img
-                src="/logout-icon.png"
-                alt="Déconnexion"
-                className="max-h-5"
-              />
-            </CNavLink>
-          </CNavItem>
+          {user && (
+            <CNavItem>
+              {/* TODO: Logooout behaviour */}
+              <CNavLink href="#">
+                <LogOut className="h-5 w-5 text-[#8828ad] transition-opacity hover:opacity-80" />
+              </CNavLink>
+            </CNavItem>
+          )}
         </CHeaderNav>
       </CContainer>
     </CHeader>
