@@ -54,7 +54,7 @@ pub async fn create_datasource_from_s3(
     let name = if suffix == 0 {
       base_name.to_string()
     } else {
-      format!("{}({})", base_name, suffix)
+      format!("{} ({})", base_name, suffix)
     };
 
     let result = query(
