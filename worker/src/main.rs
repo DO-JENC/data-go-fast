@@ -58,7 +58,7 @@ async fn job_treatment(job: Job) {
     }
   }
 
-  let new_s3_id = match upload_to_s3(&s3, &current_bytes, &group_uuid).await {
+  let new_s3_id = match upload_to_s3(&s3, &current_bytes, &group_uuid, "csv").await {
     Ok(id) => id,
     Err(e) => {
       eprintln!("Failed to upload to S3: {}", e);
