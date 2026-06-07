@@ -68,7 +68,7 @@ pub async fn get_datasource_by_id(
 
 struct Metadata {
   file_type: DatasourceType,
-  header: Option<String>,
+  header: bool,
 }
 
 struct FileUploadRequest {
@@ -101,23 +101,15 @@ fn parse_metadata(metadata: Value) -> Result<Metadata, (StatusCode, String)> {
     }
   };
 
-  let mut header: Option<String> = None;
-  if file_type == DatasourceType::Csv {
-    header = match metadata.get("header") {
-      Some(val) => Some(val.to_string().trim_matches('"').parse().map_err(|_| {
-        (
-          StatusCode::BAD_REQUEST,
-          "Cannot convert 'header' field to boolean".to_string(),
-        )
-      })?),
-      None => {
-        return Err((
-          StatusCode::BAD_REQUEST,
-          "Missing 'header' field in metadata".to_string(),
-        ));
-      }
-    };
-  }
+  let header = metadata
+    .get("header")
+    .map(|v| {
+      v.to_string()
+        .trim_matches('"')
+        .parse::<bool>()
+        .unwrap_or(true)
+    })
+    .unwrap_or(true);
 
   Ok(Metadata { file_type, header })
 }
@@ -281,6 +273,13 @@ pub async fn csv_ingestion_handler(
   // Make sure file is a correct format
   if let Err(e) = validate_file_format(&file_content, &metadata.file_type) {
     return (StatusCode::UNSUPPORTED_MEDIA_TYPE, e);
+  }
+
+  if metadata.file_type == DatasourceType::Csv && !metadata.header {
+    return (
+      StatusCode::BAD_REQUEST,
+      "Headerless CSV files are not yet supported".to_string(),
+    );
   }
 
   // TO-DO : Implement authentication and change group dynamically
