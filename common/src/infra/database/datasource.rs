@@ -45,7 +45,14 @@ pub async fn create_datasource_from_s3(
   group_id: &Uuid,
   size: f64,
 ) -> Result<Uuid, sqlx::Error> {
-  let id = Uuid::new_v4();
+  // Extract datasource ID from s3_id: "s3://bucket/group/<uuid>.ext"
+  let id = s3_id
+    .rsplit('/')
+    .next()
+    .and_then(|last| last.split('.').next())
+    .and_then(|s| Uuid::parse_str(s).ok())
+    .ok_or_else(|| sqlx::Error::Protocol("invalid s3_id format: missing UUID".into()))?;
+
   let mut suffix: i32 = -1;
 
   loop {
