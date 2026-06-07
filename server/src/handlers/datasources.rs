@@ -1,5 +1,3 @@
-use apalis_core::request::Parts;
-use apalis_redis::{RedisContext, RedisStorage};
 use axum::{
   Json,
   body::Bytes,
@@ -8,7 +6,6 @@ use axum::{
   response::IntoResponse,
 };
 use common::infra::database::datasource::{Datasource, DatasourceType};
-use common::queue::models::{Job, Op, Pipeline};
 use csv::Reader;
 use s3::{Bucket, error::S3Error};
 use serde_json::Value;
@@ -18,7 +15,6 @@ use uuid::Uuid;
 
 use crate::AppState;
 use crate::S3Instance;
-use crate::handlers::jobs::{add_job_to_postgres, add_job_to_redis};
 
 pub async fn get_all_datasources(
   State(state): State<AppState>,
@@ -196,13 +192,6 @@ async fn parse_multipart(
   })
 }
 
-fn create_pipeline(metadata: &Metadata) -> Result<Pipeline, String> {
-  Ok(vec![Op::Ingest {
-    r#type: metadata.file_type,
-    header: metadata.header.clone(),
-  }])
-}
-
 fn validate_csv(content: &Bytes) -> Result<(), String> {
   let mut reader = Reader::from_reader(content.as_ref());
 
@@ -289,16 +278,6 @@ pub async fn csv_ingestion_handler(
     Err(e) => return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)),
   };
 
-  let pipeline = match create_pipeline(&metadata) {
-    Ok(p) => p,
-    Err(e) => {
-      return (
-        StatusCode::BAD_REQUEST,
-        format!("Error creating pipeline: {}", e),
-      );
-    }
-  };
-
   // Make sure file is a correct format
   if let Err(e) = validate_file_format(&file_content, &metadata.file_type) {
     return (StatusCode::UNSUPPORTED_MEDIA_TYPE, e);
@@ -307,9 +286,8 @@ pub async fn csv_ingestion_handler(
   // TO-DO : Implement authentication and change group dynamically
   let group: Uuid = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
 
-  // Generate File and Job UUID
+  // Generate File UUID
   let file_uuid: Uuid = Uuid::new_v4();
-  let job_uuid: Uuid = Uuid::new_v4();
 
   // Upload file to S3 Bucket
   let s3_instance: S3Instance = state.s3_instance;
@@ -340,32 +318,6 @@ pub async fn csv_ingestion_handler(
   .await;
 
   if let Err(e) = datasource_to_postgres {
-    return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
-  };
-
-  // Define job name
-  let job_name: String = format!("Ingestion of {}", &file_name);
-
-  // Add ingest job to Redis
-  let redis_conn: RedisStorage<Job> = state.storage;
-  let ingest_job_to_redis: Result<Parts<RedisContext>, Error> = add_job_to_redis(
-    &redis_conn,
-    &pipeline,
-    &job_uuid,
-    &job_name,
-    &datasource_s3_id,
-  )
-  .await;
-
-  if let Err(e) = ingest_job_to_redis {
-    return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
-  };
-
-  // Add ingest job to Postgres
-  let ingest_job_to_postgres: Result<(), Error> =
-    add_job_to_postgres(&pool, &pipeline, &job_uuid, &job_name, &file_uuid).await;
-
-  if let Err(e) = ingest_job_to_postgres {
     return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
   };
 
