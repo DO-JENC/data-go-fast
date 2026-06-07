@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use sqlx::Type;
-use sqlx::{Pool, Postgres, Row, query};
+use sqlx::{Pool, Postgres, query};
 use std::str::FromStr;
 use uuid::Uuid;
 
@@ -36,59 +36,45 @@ pub struct Datasource {
   pub group_id: Option<Uuid>,
 }
 
-// Insert a datasource row for a file already uploaded to S3
-// Called by the worker after processing a filter/transform operation
+// Insert a datasource row for a file already uploaded to S3.
+// Retries on UNIQUE_VIOLATION to safely handle concurrent jobs.
 pub async fn create_datasource_from_s3(
   pool: &Pool<Postgres>,
   s3_id: &str,
-  name: &str,
+  base_name: &str,
   group_id: &Uuid,
   size: f64,
 ) -> Result<Uuid, sqlx::Error> {
   let id = Uuid::new_v4();
-  query(
-    "INSERT INTO datasources (id, s3_id, name, file_type, size, group_id)
-     VALUES ($1, $2, $3, $4, $5, $6)",
-  )
-  .bind(id)
-  .bind(s3_id)
-  .bind(name)
-  .bind(DatasourceType::Csv)
-  .bind(size)
-  .bind(group_id)
-  .execute(pool)
-  .await?;
+  let mut suffix: i32 = -1;
 
-  Ok(id)
-}
-
-// Generate a unique name like "file", "file(1)", "file(2)"...
-pub async fn get_unique_datasource_name(
-  pool: &Pool<Postgres>,
-  base_name: &str,
-  group_id: &Uuid,
-) -> Result<String, sqlx::Error> {
-  // Fetch all names that start with base_name (e.g. "sales_filtered%")
-  let rows = query("SELECT name FROM datasources WHERE group_id = $1 AND name LIKE $2")
-    .bind(group_id)
-    .bind(format!("{}%", base_name))
-    .fetch_all(pool)
-    .await?;
-
-  let existing: Vec<String> = rows.iter().map(|r| r.get::<String, _>("name")).collect();
-
-  // Fast path: base_name is free
-  if !existing.iter().any(|n| n == base_name) {
-    return Ok(base_name.to_string());
-  }
-
-  // Find the lowest (n) not taken
-  let mut i = 1;
   loop {
-    let candidate = format!("{}({})", base_name, i);
-    if !existing.iter().any(|n| n == &candidate) {
-      return Ok(candidate);
+    suffix += 1;
+    // Try base_name first, then base_name(1), base_name(2)...
+    let name = if suffix == 0 {
+      base_name.to_string()
+    } else {
+      format!("{}({})", base_name, suffix)
+    };
+
+    let result = query(
+      "INSERT INTO datasources (id, s3_id, name, file_type, size, group_id)
+       VALUES ($1, $2, $3, $4, $5, $6)",
+    )
+    .bind(id)
+    .bind(s3_id)
+    .bind(&name)
+    .bind(DatasourceType::Csv)
+    .bind(size)
+    .bind(group_id)
+    .execute(pool)
+    .await;
+
+    match result {
+      Ok(_) => return Ok(id),
+      // 23505 = PostgreSQL UNIQUE_VIOLATION → name was taken, retry with next suffix
+      Err(sqlx::Error::Database(ref e)) if e.code().as_deref() == Some("23505") => continue,
+      Err(e) => return Err(e),
     }
-    i += 1;
   }
 }

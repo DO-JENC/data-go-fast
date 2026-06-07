@@ -4,7 +4,7 @@ mod filter;
 use apalis::prelude::*;
 use apalis_redis::RedisStorage;
 use common::infra::database::config::create_pool_from_env;
-use common::infra::database::datasource::{create_datasource_from_s3, get_unique_datasource_name};
+use common::infra::database::datasource::create_datasource_from_s3;
 use common::infra::database::job::{update_job_result, update_job_status};
 use common::infra::s3::config::init_s3_instance;
 use common::queue::models::{Job, Op};
@@ -69,11 +69,8 @@ async fn job_treatment(job: Job) {
 
   let size_mb = current_bytes.len() as f64 / (1024.0 * 1024.0);
   let base_name = format!("{}_filtered", job.name);
-  let new_name = get_unique_datasource_name(&pool, &base_name, &group_uuid)
-    .await
-    .unwrap_or(base_name);
 
-  match create_datasource_from_s3(&pool, &new_s3_id, &new_name, &group_uuid, size_mb).await {
+  match create_datasource_from_s3(&pool, &new_s3_id, &base_name, &group_uuid, size_mb).await {
     Ok(new_id) => {
       println!("Datasource created with ID: {}", new_id);
       if let Err(e) = update_job_result(&pool, &job.job_id, &new_id).await {
