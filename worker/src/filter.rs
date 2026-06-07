@@ -4,10 +4,10 @@ use s3::Bucket;
 use serde_json::Value;
 use uuid::Uuid;
 
-// Download raw CSV bytes from S3 (format: "s3://bucket/group-uuid/file-uuid")
+// Download raw bytes from S3 (format: "s3://bucket/group-uuid/file-uuid.ext")
 pub async fn download_from_s3(s3: &S3Instance, s3_id: &str) -> Result<Vec<u8>, String> {
-  let (group, file) = parse_s3_id(s3_id)?;
-  let key = format!("/{}/{}.csv", group, file);
+  let (group, file, ext) = parse_s3_id(s3_id)?;
+  let key = format!("/{}/{}.{}", group, file, ext);
 
   let mut bucket: Box<Bucket> =
     Bucket::new(&s3.bucket_name, s3.region.clone(), s3.credentials.clone())
@@ -38,7 +38,7 @@ pub async fn upload_to_s3(s3: &S3Instance, content: &[u8], group: &Uuid) -> Resu
     .map_err(|e| format!("S3 upload failed: {}", e))?;
 
   Ok(format!(
-    "s3://{}/{}/{}",
+    "s3://{}/{}/{}.csv",
     s3.bucket_name, group, new_file_uuid
   ))
 }
@@ -142,7 +142,7 @@ fn evaluate(cell: &str, operator: &str, target: &Value) -> Result<bool, String> 
   }
 }
 
-pub fn parse_s3_id(s3_id: &str) -> Result<(Uuid, Uuid), String> {
+pub fn parse_s3_id(s3_id: &str) -> Result<(Uuid, Uuid, String), String> {
   let parts: Vec<&str> = s3_id.split('/').collect();
   if parts.len() < 4 {
     return Err(format!("Invalid s3_id format: {}", s3_id));
@@ -150,8 +150,10 @@ pub fn parse_s3_id(s3_id: &str) -> Result<(Uuid, Uuid), String> {
 
   let group = Uuid::parse_str(parts[parts.len() - 2])
     .map_err(|e| format!("Invalid group UUID in s3_id: {}", e))?;
-  let file = Uuid::parse_str(parts[parts.len() - 1])
-    .map_err(|e| format!("Invalid file UUID in s3_id: {}", e))?;
 
-  Ok((group, file))
+  let last = parts[parts.len() - 1];
+  let (file_str, ext) = last.split_once('.').unwrap_or((last, "csv"));
+  let file = Uuid::parse_str(file_str).map_err(|e| format!("Invalid file UUID in s3_id: {}", e))?;
+
+  Ok((group, file, ext.to_string()))
 }

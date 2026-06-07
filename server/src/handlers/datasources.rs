@@ -10,7 +10,7 @@ use axum::{
 use common::infra::database::datasource::{Datasource, DatasourceType};
 use common::queue::models::{Job, Op, Pipeline};
 use csv::Reader;
-use s3::{Bucket, error::S3Error, request::ResponseData};
+use s3::{Bucket, error::S3Error};
 use serde_json::Value;
 use sqlx::{Error, Pool, Postgres, Row, postgres::PgRow, query};
 use std::str::FromStr;
@@ -234,7 +234,7 @@ async fn add_file_to_s3(
   file_uuid: &Uuid,
   file_format: &DatasourceType,
   group: &Uuid,
-) -> Result<ResponseData, S3Error> {
+) -> Result<String, S3Error> {
   let mut bucket: Box<Bucket> = Bucket::new(
     &s3_instance.bucket_name,
     s3_instance.region.clone(),
@@ -242,14 +242,11 @@ async fn add_file_to_s3(
   )
   .unwrap();
 
-  // Add file to S3 bucket
+  let s3_key = format!("/{}/{}.{:?}", group, file_uuid, file_format).to_lowercase();
   bucket.set_path_style();
-  bucket
-    .put_object(
-      format!("/{}/{}.{:?}", group, file_uuid, file_format).to_lowercase(),
-      file_content,
-    )
-    .await
+  bucket.put_object(&s3_key, file_content).await?;
+
+  Ok(format!("s3://{}{}", s3_instance.bucket_name, s3_key))
 }
 
 async fn add_datasource_to_postgres(
@@ -316,24 +313,20 @@ pub async fn csv_ingestion_handler(
 
   // Upload file to S3 Bucket
   let s3_instance: S3Instance = state.s3_instance;
-  let file_to_s3: Result<ResponseData, S3Error> = add_file_to_s3(
+  let datasource_s3_id: String = match add_file_to_s3(
     &s3_instance,
     &file_content,
     &file_uuid,
     &metadata.file_type,
     &group,
   )
-  .await;
-
-  if let Err(e) = file_to_s3 {
-    return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
+  .await
+  {
+    Ok(s3_id) => s3_id,
+    Err(e) => return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)),
   };
 
   // Add datasource to Postgres
-  let datasource_s3_id: String = format!(
-    "s3://{}/{}/{}",
-    &s3_instance.bucket_name, &group, &file_uuid
-  );
   let pool: Pool<Postgres> = state.pool;
   let datasource_to_postgres: Result<PgRow, Error> = add_datasource_to_postgres(
     &pool,
@@ -415,15 +408,7 @@ pub async fn delete_datasource_by_id(
   }
 
   // Delete from S3
-  if let Err(e) = delete_file_from_s3(
-    &state.s3_instance,
-    &id,
-    &datasource
-      .group_id
-      .expect("Datasource must have a group_id"),
-  )
-  .await
-  {
+  if let Err(e) = delete_file_from_s3(&state.s3_instance, &datasource.s3_id).await {
     return (
       StatusCode::INTERNAL_SERVER_ERROR,
       format!("S3 deletion failed: {:?}", e),
@@ -455,11 +440,13 @@ pub async fn delete_datasource_from_postgres(
     .map(|_| ())
 }
 
-pub async fn delete_file_from_s3(
-  s3_instance: &S3Instance,
-  file_uuid: &Uuid,
-  group: &Uuid,
-) -> Result<(), S3Error> {
+pub async fn delete_file_from_s3(s3_instance: &S3Instance, s3_id: &str) -> Result<(), S3Error> {
+  let key = s3_id
+    .strip_prefix("s3://")
+    .and_then(|s| s.splitn(2, '/').nth(1))
+    .map(|p| format!("/{}", p))
+    .unwrap_or_default();
+
   let mut bucket: Box<Bucket> = Bucket::new(
     &s3_instance.bucket_name,
     s3_instance.region.clone(),
@@ -467,8 +454,5 @@ pub async fn delete_file_from_s3(
   )
   .unwrap();
   bucket.set_path_style();
-  bucket
-    .delete_object(format!("/{}/{}.csv", group, file_uuid))
-    .await
-    .map(|_| ())
+  bucket.delete_object(key).await.map(|_| ())
 }
