@@ -46,6 +46,7 @@ fn jobs_router() -> Router<AppState> {
 
 fn users_router() -> Router<AppState> {
   Router::new()
+    .route("/me", get(get_me))
     .route("/", get(|| async { StatusCode::NOT_IMPLEMENTED }))
     .route("/{id}", get(|| async { StatusCode::NOT_IMPLEMENTED }))
     .layer(middleware::from_fn(auth_middleware))
