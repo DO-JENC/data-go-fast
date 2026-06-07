@@ -1,4 +1,5 @@
 mod api;
+mod errors;
 mod handlers;
 mod infra;
 mod models;
