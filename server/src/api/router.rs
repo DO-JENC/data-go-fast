@@ -20,6 +20,11 @@ use axum::{
 use tower_http::cors::{Any, CorsLayer};
 
 const FILE_SIZE_LIMIT: usize = 1024 * 1024 * 1024; // 1GB
+fn auth_router() -> Router<AppState> {
+  Router::new()
+    .route("/signup", post(signup))
+    .route("/login", post(login))
+}
 
 fn auth_router() -> Router<AppState> {
   Router::new()
