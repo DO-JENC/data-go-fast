@@ -129,7 +129,7 @@ export function SignupForm() {
               </Field>
             </div>
 
-            <FieldDescription className="text-xs">
+            <FieldDescription className="text-xs sm:col-span-2 text-center">
               Password must be at least 8 characters long and include special
               characters.
             </FieldDescription>
