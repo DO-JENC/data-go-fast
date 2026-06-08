@@ -4,9 +4,14 @@
  */
 
 const TOKEN_KEY = "access_token"
+const API_BASE_URL = import.meta.env.VITE_API_URL || ""
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string>
+}
+
+interface RefreshTokenResponse {
+  access_token?: string
 }
 
 async function request<T>(
@@ -24,6 +29,7 @@ async function request<T>(
   const config: RequestInit = {
     ...options,
     headers,
+    credentials: "include", // Required for cookies (refresh token)
   }
 
   // Handle query parameters if provided
@@ -33,18 +39,43 @@ async function request<T>(
     url += `?${searchParams.toString()}`
   }
 
-  // Ensure url starts with /api if it doesn't already and isn't a full URL
-  const fullUrl =
-    url.startsWith("http") || url.startsWith("/api")
-      ? url
-      : `/api${url.startsWith("/") ? "" : "/"}${url}`
+  // Determine the full URL
+  // 1. If it's already a full URL, use it
+  // 2. If it starts with /api, use it as is (relative to the base)
+  // 3. Otherwise, prepend API_BASE_URL and /api
+  let fullUrl = url
+  if (!url.startsWith("http")) {
+    const prefix = url.startsWith("/api") ? "" : "/api"
+    const separator = url.startsWith("/") ? "" : "/"
+    fullUrl = `${API_BASE_URL}${prefix}${separator}${url}`
+  }
 
   const response = await fetch(fullUrl, config)
 
   if (response.status === 401) {
+    // If we're not on the login page and it's not a refresh request, try to refresh
+    if (
+      !window.location.pathname.includes("/login") &&
+      !url.includes("/auth/refresh")
+    ) {
+      try {
+        const refreshResponse =
+          await api.post<RefreshTokenResponse>("/auth/refresh")
+        if (refreshResponse.access_token) {
+          api.setToken(refreshResponse.access_token)
+          // Retry original request
+          return request<T>(endpoint, options)
+        }
+      } catch {
+        // Refresh failed silently, proceeding to global logout
+      }
+    }
+
     // Global logout on unauthorized
     localStorage.removeItem(TOKEN_KEY)
-    window.location.href = "/login"
+    if (!window.location.pathname.includes("/login")) {
+      window.location.href = "/login"
+    }
   }
 
   if (!response.ok) {
