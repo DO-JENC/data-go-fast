@@ -52,3 +52,13 @@ CREATE TABLE job_datasources (
     datasource_id UUID REFERENCES datasources(id) ON DELETE CASCADE,
     PRIMARY KEY (job_id, datasource_id)
 );
+
+CREATE TABLE refresh_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(255) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_refresh_tokens_hash ON refresh_tokens(token_hash);
