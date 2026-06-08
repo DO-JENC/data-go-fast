@@ -331,8 +331,16 @@ pub async fn csv_ingestion_handler(
 
   // Add datasource to Postgres
   let pool: Pool<Postgres> = state.pool;
-  let datasource_to_postgres =
-    create_datasource_from_s3(&pool, &datasource_s3_id, &file_name, &group, file_size).await;
+  println!("File type: {:?}", &metadata.file_type);
+  let datasource_to_postgres = create_datasource_from_s3(
+    &pool,
+    &datasource_s3_id,
+    &file_name,
+    &metadata.file_type,
+    &group,
+    file_size,
+  )
+  .await;
 
   if let Err(e) = datasource_to_postgres {
     return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));

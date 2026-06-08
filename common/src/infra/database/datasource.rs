@@ -42,6 +42,7 @@ pub async fn create_datasource_from_s3(
   pool: &Pool<Postgres>,
   s3_id: &str,
   base_name: &str,
+  file_type: &DatasourceType,
   group_id: &Uuid,
   size: f64,
 ) -> Result<Uuid, sqlx::Error> {
@@ -71,7 +72,7 @@ pub async fn create_datasource_from_s3(
     .bind(id)
     .bind(s3_id)
     .bind(&name)
-    .bind(DatasourceType::Csv)
+    .bind(file_type)
     .bind(size)
     .bind(group_id)
     .execute(pool)

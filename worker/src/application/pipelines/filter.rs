@@ -1,4 +1,4 @@
-use common::infra::database::datasource::create_datasource_from_s3;
+use common::infra::database::datasource::{DatasourceType, create_datasource_from_s3};
 use common::infra::database::job::{update_job_result, update_job_status};
 use common::infra::s3::config::S3Instance;
 use common::queue::models::{Job, Op};
@@ -46,9 +46,18 @@ pub async fn filter_processing(pool: &Pool<Postgres>, s3: &S3Instance, job: &Job
   };
 
   let size_mb = current_bytes.len() as f64 / (1024.0 * 1024.0);
-  let base_name = format!("{}_filtered", job.name);
+  let base_name = job.name.clone();
 
-  match create_datasource_from_s3(pool, &new_s3_id, &base_name, &group_uuid, size_mb).await {
+  match create_datasource_from_s3(
+    pool,
+    &new_s3_id,
+    &base_name,
+    &DatasourceType::Json,
+    &group_uuid,
+    size_mb,
+  )
+  .await
+  {
     Ok(new_id) => {
       println!("Datasource created with ID: {}", new_id);
       if let Err(e) = update_job_result(pool, &job.job_id, &new_id).await {
