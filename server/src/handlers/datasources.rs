@@ -14,7 +14,7 @@ use common::{
 use csv::Reader;
 use s3::{Bucket, error::S3Error};
 use serde_json::Value;
-use sqlx::{Error, Pool, Postgres, Row, postgres::PgRow, query};
+use sqlx::{Error, Pool, Postgres, Row, query};
 use std::str::FromStr;
 use uuid::Uuid;
 
@@ -236,31 +236,6 @@ async fn add_file_to_s3(
   bucket.put_object(&s3_key, file_content).await?;
 
   Ok(format!("s3://{}{}", s3_instance.bucket_name, s3_key))
-}
-
-async fn add_datasource_to_postgres(
-  pool: &Pool<Postgres>,
-  file_uuid: &Uuid,
-  datasource_s3_id: &str,
-  file_name: &str,
-  file_type: &DatasourceType,
-  file_size: &f64,
-  group: &Uuid,
-) -> Result<PgRow, Error> {
-  query(
-    "
-  INSERT INTO
-  datasources (id, s3_id, name, file_type, size, group_id)
-  VALUES ($1, $2, $3, $4, $5, $6 ) RETURNING *;",
-  )
-  .bind(file_uuid)
-  .bind(datasource_s3_id)
-  .bind(file_name)
-  .bind(file_type)
-  .bind(file_size)
-  .bind(group)
-  .fetch_one(pool)
-  .await
 }
 
 fn create_pipeline(metadata: &Metadata) -> Result<Pipeline, String> {
