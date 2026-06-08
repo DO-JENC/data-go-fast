@@ -1,3 +1,4 @@
+import { api } from "@/lib/api"
 import type { User } from "@/types/user"
 import { useCallback, useEffect, useState } from "react"
 
@@ -18,15 +19,9 @@ export function useAuth() {
   const [initialFetchLoading, setInitialFetchLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchUser = useCallback(async (token: string) => {
+  const fetchUser = useCallback(async () => {
     try {
-      const res = await fetch("/api/users/me", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      if (!res.ok) throw new Error("Not authenticated")
-      const currentUser = (await res.json()) as User
+      const currentUser = await api.get<User>("/users/me")
       setUser(currentUser)
       return currentUser
     } catch {
@@ -42,7 +37,7 @@ export function useAuth() {
     const initAuth = async () => {
       const token = localStorage.getItem("access_token")
       if (token) {
-        await fetchUser(token)
+        await fetchUser()
       } else {
         setInitialFetchLoading(false)
       }
@@ -54,21 +49,12 @@ export function useAuth() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
+      const data = await api.post<AuthResponse>("/auth/login", {
+        email,
+        password,
       })
-
-      if (!res.ok) {
-        throw new Error(`Error: ${res.status} - Failed to login`)
-      }
-
-      const data = (await res.json()) as AuthResponse
       localStorage.setItem("access_token", data.access_token)
-      return await fetchUser(data.access_token)
+      return await fetchUser()
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message || "Something went wrong")
@@ -84,21 +70,12 @@ export function useAuth() {
     setError(null)
 
     try {
-      const res = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
+      const data = await api.post<AuthResponse>("/auth/signup", {
+        email,
+        password,
       })
-
-      if (!res.ok) {
-        throw new Error(`Error: ${res.status} - Failed to sign up`)
-      }
-
-      const data = (await res.json()) as AuthResponse
       localStorage.setItem("access_token", data.access_token)
-      return await fetchUser(data.access_token)
+      return await fetchUser()
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message || "Something went wrong")
