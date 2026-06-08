@@ -19,10 +19,7 @@ use crate::{
     auth::{get_refresh_token, revoke_refresh_token, save_refresh_token},
     user::{create_user, find_user_by_email, find_user_by_id},
   },
-  models::{
-    auth::{AuthBody, AuthPayload, Claims, RefreshToken},
-    user::UserResponse,
-  },
+  models::auth::{AuthBody, AuthPayload, Claims, RefreshToken},
 };
 
 pub async fn logout(
