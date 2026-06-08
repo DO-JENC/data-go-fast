@@ -34,10 +34,10 @@ async fn job_treatment(job: Job) {
   for op in &job.pipeline {
     match op {
       Op::Ingest { r#type, .. } => match r#type {
-        &DatasourceType::Csv => println!("CSV Ingestion has been process."),
-        &DatasourceType::Json => ingest_json(&pool, &s3, &job).await,
+        DatasourceType::Csv => println!("CSV Ingestion has been process."),
+        DatasourceType::Json => ingest_json(&pool, &s3, &job).await,
       },
-      Op::Filter { .. } => filter_processing(&pool, &s3, &job, &op).await,
+      Op::Filter { .. } => filter_processing(&pool, &s3, &job, op).await,
     }
   }
 }
