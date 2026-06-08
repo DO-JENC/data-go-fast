@@ -1954,11 +1954,14 @@ version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a12e6b5f4d8ef33944e833e2b1859ad478deab6e431d7337b30ee2efe21f7543"
 dependencies = [
+ "arc-swap",
  "arcstr",
  "async-lock",
+ "backon",
  "bytes",
  "cfg-if",
  "combine",
+ "futures-channel",
  "futures-util",
  "itoa",
  "num-bigint",
@@ -2340,7 +2343,6 @@ dependencies = [
  "apalis-core",
  "apalis-redis",
  "argon2",
- "async-trait",
  "aws-creds",
  "axum",
  "chrono",
