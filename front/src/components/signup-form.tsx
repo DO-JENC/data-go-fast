@@ -17,11 +17,11 @@ import { Input } from "@/components/ui/input"
 import { useAuth } from "@/hooks/use-auth"
 import { Eye, EyeOff, Lock, Mail } from "lucide-react"
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 
 export function SignupForm() {
-  const { signup, loading, error } = useAuth()
+  const { signup, login, loading, error } = useAuth()
   const [password, setPassword] = useState("")
   const [email, setEmail] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -29,10 +29,10 @@ export function SignupForm() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const navigate = useNavigate()
 
-  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
-    if (password != confirmPassword) {
+    if (password !== confirmPassword) {
       toast.error("Passwords do not match")
       return
     }
@@ -40,6 +40,8 @@ export function SignupForm() {
     const success = await signup({ email, password })
     if (success) {
       navigate("/datasources")
+    } else if (error) {
+      toast.error(error)
     }
   }
 
@@ -56,7 +58,7 @@ export function SignupForm() {
         </div>
       </CardHeader>
       <CardContent className="pb-4">
-        <form onSubmit={(e) => handleSubmit(e)} className="grid gap-4">
+        <form onSubmit={handleSubmit} className="grid gap-4">
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="email">Email address</FieldLabel>
@@ -146,14 +148,14 @@ export function SignupForm() {
         </form>
       </CardContent>
       <CardFooter className="flex flex-col border-t-0 bg-muted/30 py-3">
-        <div className="text-center text-sm text-muted-foreground">
+        <div className="text-center text-sm text-muted-foreground py-3">
           Already have an account?{" "}
-          <a
-            href="/login"
+          <Link
+            to="/login"
             className="font-semibold !text-orange-500 transition-colors hover:!text-orange-600 hover:underline underline-offset-4"
           >
             Sign in
-          </a>
+          </Link>
         </div>
       </CardFooter>
     </Card>
