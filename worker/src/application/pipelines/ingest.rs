@@ -1,8 +1,8 @@
 use common::infra::database::job::update_job_status;
 use common::infra::s3::config::S3Instance;
 use common::queue::models::Job;
+use serde_json::Value;
 use sqlx::Row;
-use sqlx::types::Json;
 use sqlx::{Pool, Postgres, query};
 use uuid::Uuid;
 
@@ -18,10 +18,10 @@ pub async fn ingest_json(pool: &Pool<Postgres>, s3: &S3Instance, job: &Job) {
     }
   };
 
-  let json_string: String = match String::from_utf8(json_bytes) {
+  let json: Value = match serde_json::from_slice(&json_bytes) {
     Ok(str) => str,
     Err(e) => {
-      eprintln!("Failed to convert bytes to string: {}", e);
+      eprintln!("Failed to convert bytes to JSON: {}", e);
       let _ = update_job_status(pool, &job.job_id, "error").await;
       return;
     }
@@ -49,7 +49,7 @@ pub async fn ingest_json(pool: &Pool<Postgres>, s3: &S3Instance, job: &Job) {
         ",
   )
   .bind(datasource_id)
-  .bind(Json(json_string))
+  .bind(json)
   .fetch_one(pool)
   .await
   {
