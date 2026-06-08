@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input"
 import { useAuth } from "@/hooks/use-auth"
 import { Eye, EyeOff, Lock, Mail } from "lucide-react"
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
+import { toast } from "sonner"
 
 export function LoginForm() {
   const { login, loading, error } = useAuth()
@@ -20,12 +21,14 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const navigate = useNavigate()
 
-  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
     const success = await login({ email, password })
     if (success) {
       navigate("/datasources")
+    } else if (error) {
+      toast.error(error)
     }
   }
 
@@ -39,7 +42,7 @@ export function LoginForm() {
         </div>
       </CardHeader>
       <CardContent>
-        <form onSubmit={(e) => handleSubmit(e)} className="grid gap-6">
+        <form onSubmit={handleSubmit} className="grid gap-6">
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="email">Email address</FieldLabel>
@@ -96,14 +99,14 @@ export function LoginForm() {
         </form>
       </CardContent>
       <CardFooter className="flex flex-col border-t-0 bg-muted/30">
-        <div className="text-center text-sm text-muted-foreground">
+        <div className="text-center text-sm text-muted-foreground py-4">
           Don't have an account?{" "}
-          <a
-            href="/login"
+          <Link
+            to="/signup"
             className="font-semibold !text-orange-500 transition-colors hover:!text-orange-600 hover:underline underline-offset-4"
           >
             Create one
-          </a>
+          </Link>
         </div>
       </CardFooter>
     </Card>
