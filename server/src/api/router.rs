@@ -3,11 +3,14 @@ use crate::handlers::datasources::*;
 use crate::handlers::groups::*;
 use crate::handlers::jobs::*;
 use crate::handlers::users::*;
+use axum::extract::DefaultBodyLimit;
 use axum::{
   Router,
   http::StatusCode,
   routing::{delete, get, post},
 };
+
+const FILE_SIZE_LIMIT: usize = 1024 * 1024 * 1024; // 1GB
 
 fn datasources_router() -> Router<AppState> {
   Router::new()
@@ -15,6 +18,7 @@ fn datasources_router() -> Router<AppState> {
     .route("/{id}", get(get_datasource_by_id))
     .route("/", post(csv_ingestion_handler))
     .route("/{id}", delete(delete_datasource_by_id))
+    .layer(DefaultBodyLimit::max(FILE_SIZE_LIMIT))
 }
 
 fn jobs_router() -> Router<AppState> {
