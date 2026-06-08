@@ -5,11 +5,14 @@ use argon2::{
   },
 };
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
-use chrono::{Duration, Utc};
+use axum_extra::extract::CookieJar;
+use chrono::{Duration as ChronoDuration, Utc};
+use cookie::{Cookie, SameSite};
 use jsonwebtoken::{EncodingKey, Header, encode};
 use rand::{Rng, rng};
 use redis::AsyncCommands;
 use std::env;
+use time::Duration as TimeDuration;
 use uuid::Uuid;
 
 use crate::{
@@ -19,15 +22,20 @@ use crate::{
     auth::{get_refresh_token, revoke_refresh_token, save_refresh_token},
     user::{create_user, find_user_by_email, find_user_by_id},
   },
-  models::auth::{AuthBody, AuthPayload, Claims, RefreshToken},
+  models::auth::{AuthBody, AuthPayload, Claims},
 };
 
 pub async fn logout(
   State(state): State<AppState>,
-  Json(payload): Json<RefreshToken>,
+  jar: CookieJar,
 ) -> Result<impl IntoResponse, AppError> {
+  let refresh_token = jar
+    .get("refresh_token")
+    .map(|c| c.value().to_string())
+    .ok_or(AppError::Unauthorized("No refresh token found"))?;
+
   let mut redis_conn = state.redis_connection.clone();
-  let redis_key = format!("refresh_token:{}", payload.refresh_token);
+  let redis_key = format!("refresh_token:{}", refresh_token);
 
   // Remove from Redis
   let _: () = redis_conn
@@ -36,11 +44,14 @@ pub async fn logout(
     .map_err(|_| AppError::Internal("Redis error"))?;
 
   // Remove from Postgres
-  revoke_refresh_token(&state.pool, &payload.refresh_token)
+  revoke_refresh_token(&state.pool, &refresh_token)
     .await
     .map_err(|_| AppError::Internal("Database error"))?;
 
-  Ok(StatusCode::OK)
+  // Clear cookie
+  let cookie = build_cookie("".to_string());
+
+  Ok((jar.remove(cookie), StatusCode::OK))
 }
 
 async fn generate_refresh_token(state: AppState, user_id: Uuid) -> Result<String, AppError> {
@@ -69,10 +80,15 @@ async fn generate_refresh_token(state: AppState, user_id: Uuid) -> Result<String
 
 pub async fn refresh_token(
   State(state): State<AppState>,
-  Json(payload): Json<RefreshToken>,
+  jar: CookieJar,
 ) -> Result<impl IntoResponse, AppError> {
+  let refresh_token = jar
+    .get("refresh_token")
+    .map(|c| c.value().to_string())
+    .ok_or(AppError::Unauthorized("No refresh token found"))?;
+
   let mut redis_conn = state.redis_connection.clone();
-  let redis_key = format!("refresh_token:{}", payload.refresh_token);
+  let redis_key = format!("refresh_token:{}", refresh_token);
 
   // Try Redis first
   let user_id: Uuid = match redis_conn.get::<_, Option<String>>(&redis_key).await {
@@ -81,7 +97,7 @@ pub async fn refresh_token(
     }
     _ => {
       // Fallback to Postgres
-      let token_row = get_refresh_token(&state.pool, &payload.refresh_token)
+      let token_row = get_refresh_token(&state.pool, &refresh_token)
         .await
         .map_err(|_| AppError::Internal("Database error"))?
         .ok_or(AppError::Unauthorized("Invalid refresh token"))?;
@@ -109,13 +125,13 @@ pub async fn refresh_token(
 
   Ok(Json(AuthBody {
     access_token,
-    refresh_token: payload.refresh_token,
     token_type: "Bearer".to_string(),
   }))
 }
 
 pub async fn signup(
   State(state): State<AppState>,
+  jar: CookieJar,
   Json(payload): Json<AuthPayload>,
 ) -> Result<impl IntoResponse, AppError> {
   let salt = SaltString::generate(&mut Osrng);
@@ -137,19 +153,23 @@ pub async fn signup(
 
   let access_token = generate_jwt(user.id, user.email.clone())?;
   let refresh_token: String = generate_refresh_token(state, user.id).await?;
+  let cookie = build_cookie(refresh_token);
 
   Ok((
-    StatusCode::CREATED,
-    Json(AuthBody {
-      access_token,
-      refresh_token,
-      token_type: "Bearer".to_string(),
-    }),
+    jar.add(cookie),
+    (
+      StatusCode::CREATED,
+      Json(AuthBody {
+        access_token,
+        token_type: "Bearer".to_string(),
+      }),
+    ),
   ))
 }
 
 pub async fn login(
   State(state): State<AppState>,
+  jar: CookieJar,
   Json(payload): Json<AuthPayload>,
 ) -> Result<impl IntoResponse, AppError> {
   let user = find_user_by_email(&state.pool, &payload.email)
@@ -170,19 +190,35 @@ pub async fn login(
 
   let access_token = generate_jwt(user.id, user.email.clone())?;
   let refresh_token: String = generate_refresh_token(state, user.id).await?;
+  let cookie = build_cookie(refresh_token);
 
-  Ok(Json(AuthBody {
-    access_token,
-    refresh_token,
-    token_type: "Bearer".to_string(),
-  }))
+  Ok((
+    jar.add(cookie),
+    Json(AuthBody {
+      access_token,
+      token_type: "Bearer".to_string(),
+    }),
+  ))
+}
+
+fn build_cookie(refresh_token: String) -> Cookie<'static> {
+  let mut cookie = Cookie::build(("refresh_token", refresh_token))
+    .path("/")
+    .http_only(true)
+    .same_site(SameSite::Lax)
+    .max_age(TimeDuration::days(7));
+
+  if env::var("APP_ENV").unwrap_or_default() == "production" {
+    cookie = cookie.secure(true);
+  }
+  cookie.build().into_owned()
 }
 
 fn generate_jwt(user_id: Uuid, email: String) -> Result<String, AppError> {
   let secret = env::var("JWT_SECRET").map_err(|_| AppError::Internal("JWT_SECRET not set"))?;
 
   let exp = Utc::now()
-    .checked_add_signed(Duration::hours(24))
+    .checked_add_signed(ChronoDuration::hours(24))
     .expect("valid timestamp")
     .timestamp() as usize;
 

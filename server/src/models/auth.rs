@@ -12,11 +12,6 @@ pub struct Claims {
   pub exp: usize,
 }
 
-#[derive(Deserialize)]
-pub struct RefreshToken {
-  pub refresh_token: String,
-}
-
 #[derive(sqlx::FromRow)]
 pub struct RefreshTokenRow {
   pub user_id: Uuid,
@@ -31,7 +26,6 @@ pub struct AuthPayload {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthBody {
   pub access_token: String,
-  pub refresh_token: String,
   pub token_type: String,
 }
 
