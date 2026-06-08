@@ -2,7 +2,7 @@ use crate::{
   AppState,
   api::middleware::auth_middleware,
   handlers::{
-    auth::{login, signup, refresh_token},
+    auth::{login, logout, refresh_token, signup},
     datasources::*,
     groups::*,
     users::*,
@@ -25,6 +25,7 @@ fn auth_router() -> Router<AppState> {
     .route("/signup", post(signup))
     .route("/login", post(login))
     .route("/refresh", post(refresh_token))
+    .route("/logout", post(logout))
 }
 
 fn datasources_router() -> Router<AppState> {
