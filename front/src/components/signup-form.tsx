@@ -21,7 +21,7 @@ import { Link, useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 
 export function SignupForm() {
-  const { signup, login, loading, error } = useAuth()
+  const { signup, loading, error } = useAuth()
   const [password, setPassword] = useState("")
   const [email, setEmail] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
