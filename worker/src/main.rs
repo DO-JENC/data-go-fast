@@ -70,7 +70,7 @@ async fn job_treatment(job: Job) {
   };
 
   let size_mb = current_bytes.len() as f64 / (1024.0 * 1024.0);
-  let base_name = format!("{}_filtered", job.name);
+  let base_name = job.name.clone();
 
   match create_datasource_from_s3(&pool, &new_s3_id, &base_name, &group_uuid, size_mb).await {
     Ok(new_id) => {
