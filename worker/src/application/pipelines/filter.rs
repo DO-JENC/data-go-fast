@@ -52,7 +52,7 @@ pub async fn filter_processing(pool: &Pool<Postgres>, s3: &S3Instance, job: &Job
     pool,
     &new_s3_id,
     &base_name,
-    &DatasourceType::Json,
+    &DatasourceType::Csv,
     &group_uuid,
     size_mb,
   )
