@@ -122,11 +122,15 @@ pub async fn refresh_token(
     .ok_or(AppError::Unauthorized("User not found"))?;
 
   let access_token = generate_jwt(user.id, user.email)?;
+  let new_cookie = build_cookie(refresh_token);
 
-  Ok(Json(AuthBody {
-    access_token,
-    token_type: "Bearer".to_string(),
-  }))
+  Ok((
+    jar.add(new_cookie),
+    Json(AuthBody {
+      access_token,
+      token_type: "Bearer".to_string(),
+    }),
+  ))
 }
 
 pub async fn signup(
