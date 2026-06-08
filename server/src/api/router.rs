@@ -12,11 +12,12 @@ use crate::{
 
 use axum::{
   Router,
+  http::{HeaderValue, Method, StatusCode},
   extract::DefaultBodyLimit,
-  http::StatusCode,
   middleware,
   routing::{delete, get, post},
 };
+use tower_http::cors::{Any, CorsLayer};
 
 const FILE_SIZE_LIMIT: usize = 1024 * 1024 * 1024; // 1GB
 
@@ -61,7 +62,36 @@ fn groups_router() -> Router<AppState> {
     .route("/{id}/members", get(list_members_handler))
     .layer(middleware::from_fn(auth_middleware))
 }
+
 pub fn router(state: AppState) -> Router {
+  let cors = match std::env::var("ALLOWED_ORIGINS") {
+    Ok(origins) if origins == "*" => CorsLayer::new()
+      .allow_origin(Any)
+      .allow_methods(Any)
+      .allow_headers(Any),
+    Ok(origins) => {
+      let origins = origins
+        .split(',')
+        .map(|s| s.trim().parse::<HeaderValue>().unwrap())
+        .collect::<Vec<_>>();
+      CorsLayer::new()
+        .allow_origin(origins)
+        .allow_methods([
+          Method::GET,
+          Method::POST,
+          Method::PUT,
+          Method::DELETE,
+          Method::OPTIONS,
+        ])
+        .allow_headers(Any)
+        .allow_credentials(true)
+    }
+    Err(_) => CorsLayer::new()
+      .allow_origin(Any)
+      .allow_methods(Any)
+      .allow_headers(Any),
+  };
+
   Router::new()
     .route("/health", get(|| async { StatusCode::OK }))
     .nest("/auth", auth_router())
@@ -69,5 +99,6 @@ pub fn router(state: AppState) -> Router {
     .nest("/jobs", jobs_router())
     .nest("/users", users_router())
     .nest("/groups", groups_router())
+    .layer(cors)
     .with_state(state)
 }
