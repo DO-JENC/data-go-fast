@@ -5,10 +5,19 @@ import { useAuth } from "@/hooks/use-auth"
 import Datasources from "@/pages/Datasources"
 import Login from "@/pages/Login"
 import Signup from "@/pages/Signup"
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
+import {
+  BrowserRouter,
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+} from "react-router-dom"
 import "./App.css"
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+/**
+ * Layout component for routes that require authentication.
+ */
+function ProtectedLayout() {
   const { user, initialFetchLoading } = useAuth()
 
   if (initialFetchLoading) {
@@ -23,10 +32,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />
   }
 
-  return <>{children}</>
+  return <Outlet />
 }
 
-function PublicRoute({ children }: { children: React.ReactNode }) {
+/**
+ * Layout component for routes that should only be accessible when NOT authenticated (e.g., Login/Signup).
+ */
+function PublicLayout() {
   const { user, initialFetchLoading } = useAuth()
 
   if (initialFetchLoading) {
@@ -41,7 +53,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/datasources" replace />
   }
 
-  return <>{children}</>
+  return <Outlet />
 }
 
 function App() {
@@ -50,38 +62,17 @@ function App() {
       <Header />
       <main className="flex min-h-0 flex-1 flex-col bg-[var(--bg)]">
         <Routes>
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Datasources />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/signup"
-            element={
-              <PublicRoute>
-                <Signup />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path="/login"
-            element={
-              <PublicRoute>
-                <Login />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path="/datasources"
-            element={
-              <ProtectedRoute>
-                <Datasources />
-              </ProtectedRoute>
-            }
-          />
+          {/* Protected Routes Group */}
+          <Route element={<ProtectedLayout />}>
+            <Route path="/" element={<Datasources />} />
+            <Route path="/datasources" element={<Datasources />} />
+          </Route>
+
+          {/* Public Routes Group */}
+          <Route element={<PublicLayout />}>
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/login" element={<Login />} />
+          </Route>
         </Routes>
       </main>
       <Toaster />
