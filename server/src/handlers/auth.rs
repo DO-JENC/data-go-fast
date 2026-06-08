@@ -7,6 +7,7 @@ use argon2::{
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{EncodingKey, Header, encode};
+use rand::{Rng, rng};
 use redis::AsyncCommands;
 use std::env;
 use uuid::Uuid;
@@ -15,7 +16,7 @@ use crate::{
   AppState,
   errors::AppError,
   infra::database::{
-    auth::get_refresh_token,
+    auth::{get_refresh_token, revoke_refresh_token, save_refresh_token},
     user::{create_user, find_user_by_email, find_user_by_id},
   },
   models::{
@@ -24,6 +25,27 @@ use crate::{
   },
 };
 
+pub async fn logout(
+  State(state): State<AppState>,
+  Json(payload): Json<RefreshToken>,
+) -> Result<impl IntoResponse, AppError> {
+  let mut redis_conn = state.redis_connection.clone();
+  let redis_key = format!("refresh_token:{}", payload.refresh_token);
+
+  // Remove from Redis
+  let _: () = redis_conn
+    .del(&redis_key)
+    .await
+    .map_err(|_| AppError::Internal("Redis error"))?;
+
+  // Remove from Postgres
+  revoke_refresh_token(&state.pool, &payload.refresh_token)
+    .await
+    .map_err(|_| AppError::Internal("Database error"))?;
+
+  Ok(StatusCode::OK)
+}
+
 pub async fn refresh_token(
   State(state): State<AppState>,
   Json(payload): Json<RefreshToken>,
@@ -31,6 +53,7 @@ pub async fn refresh_token(
   let mut redis_conn = state.redis_connection.clone();
   let redis_key = format!("refresh_token:{}", payload.refresh_token);
 
+  // Try Redis first
   let user_id: Uuid = match redis_conn.get::<_, Option<String>>(&redis_key).await {
     Ok(Some(id_str)) => {
       Uuid::parse_str(&id_str).map_err(|_| AppError::Internal("Invalid ID format in cache"))?
@@ -46,6 +69,12 @@ pub async fn refresh_token(
         return Err(AppError::Unauthorized("Refresh token expired"));
       }
 
+      // Sync back to Redis for faster subsequent access
+      let _: () = redis_conn
+        .set_ex(&redis_key, token_row.user_id.to_string(), 7 * 24 * 60 * 60)
+        .await
+        .map_err(|_| AppError::Internal("Redis error"))?;
+
       token_row.user_id
     }
   };
@@ -55,10 +84,11 @@ pub async fn refresh_token(
     .map_err(|_| AppError::Internal("Database error"))?
     .ok_or(AppError::Unauthorized("User not found"))?;
 
-  let token = generate_jwt(user.id, user.email)?;
+  let access_token = generate_jwt(user.id, user.email)?;
 
   Ok(Json(AuthBody {
-    access_token: token,
+    access_token,
+    refresh_token: payload.refresh_token,
     token_type: "Bearer".to_string(),
   }))
 }
@@ -107,10 +137,31 @@ pub async fn login(
     return Err(AppError::Unauthorized("Invalid credentials"));
   }
 
-  let token = generate_jwt(user.id, user.email)?;
+  let access_token = generate_jwt(user.id, user.email.clone())?;
+
+  // Generate a new refresh token
+  let mut bytes = [0u8; 32];
+  rng().fill_bytes(&mut bytes);
+  let refresh_token = hex::encode(bytes);
+
+  // Save to Postgres
+  let expires_at = save_refresh_token(&state.pool, user.id, &refresh_token, 7)
+    .await
+    .map_err(|_| AppError::Internal("Database error"))?;
+
+  // Save to Redis (using TTL from days)
+  let mut redis_conn = state.redis_connection.clone();
+  let redis_key = format!("refresh_token:{}", refresh_token);
+  let ttl = (expires_at - Utc::now()).num_seconds() as u64;
+
+  let _: () = redis_conn
+    .set_ex(&redis_key, user.id.to_string(), ttl)
+    .await
+    .map_err(|_| AppError::Internal("Redis error"))?;
 
   Ok(Json(AuthBody {
-    access_token: token,
+    access_token,
+    refresh_token,
     token_type: "Bearer".to_string(),
   }))
 }
