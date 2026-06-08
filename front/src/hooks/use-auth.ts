@@ -26,7 +26,7 @@ export function useAuth() {
       return currentUser
     } catch {
       setUser(null)
-      localStorage.removeItem("access_token")
+      api.clearToken()
       return null
     } finally {
       setInitialFetchLoading(false)
@@ -35,7 +35,7 @@ export function useAuth() {
 
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem("access_token")
+      const token = api.getToken()
       if (token) {
         await fetchUser()
       } else {
@@ -53,7 +53,7 @@ export function useAuth() {
         email,
         password,
       })
-      localStorage.setItem("access_token", data.access_token)
+      api.setToken(data.access_token)
       return await fetchUser()
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -74,7 +74,7 @@ export function useAuth() {
         email,
         password,
       })
-      localStorage.setItem("access_token", data.access_token)
+      api.setToken(data.access_token)
       return await fetchUser()
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -87,7 +87,7 @@ export function useAuth() {
   }
 
   const logout = () => {
-    localStorage.removeItem("access_token")
+    api.clearToken()
     setUser(null)
   }
 
