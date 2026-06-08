@@ -2,7 +2,7 @@ use crate::{
   AppState,
   api::middleware::auth_middleware,
   handlers::{
-    auth::{login, signup},
+    auth::{login, signup, refresh_token},
     datasources::*,
     groups::*,
     jobs::{create_job_handler, list_jobs_handler, get_job_by_id_handler},
@@ -22,6 +22,7 @@ fn auth_router() -> Router<AppState> {
   Router::new()
     .route("/signup", post(signup))
     .route("/login", post(login))
+    .route("/refresh", post(refresh_token))
 }
 
 fn datasources_router() -> Router<AppState> {

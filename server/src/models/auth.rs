@@ -12,6 +12,17 @@ pub struct Claims {
   pub exp: usize,
 }
 
+#[derive(Deserialize)]
+pub struct RefreshToken {
+  pub refresh_token: String,
+}
+
+#[derive(sqlx::FromRow)]
+pub struct RefreshTokenRow {
+  pub id: Uuid,
+  pub user_id: Uuid,
+  pub expires_at: chrono::NaiveDateTime,
+}
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthPayload {
   pub email: String,
