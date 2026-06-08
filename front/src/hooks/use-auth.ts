@@ -9,7 +9,6 @@ interface UserProps {
 
 interface AuthResponse {
   access_token: string
-  refresh_token: string
   token_type: string
 }
 
@@ -86,9 +85,15 @@ export function useAuth() {
     }
   }
 
-  const logout = () => {
-    api.clearToken()
-    setUser(null)
+  const logout = async () => {
+    try {
+      await api.post("/auth/logout")
+    } catch {
+      // Ignore logout errors
+    } finally {
+      api.clearToken()
+      setUser(null)
+    }
   }
 
   return {
