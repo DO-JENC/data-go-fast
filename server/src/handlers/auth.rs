@@ -46,6 +46,30 @@ pub async fn logout(
   Ok(StatusCode::OK)
 }
 
+async fn generate_refresh_token(state: AppState, user_id: Uuid) -> Result<String, AppError> {
+  // Generate a new refresh token,
+  let mut bytes = [0u8; 32];
+  rng().fill_bytes(&mut bytes);
+  let refresh_token = hex::encode(bytes);
+
+  // Save to Postgres
+  let expires_at = save_refresh_token(&state.pool, user_id, &refresh_token, 7)
+    .await
+    .map_err(|_| AppError::Internal("Database error"))?;
+
+  // Save to Redis (using TTL from days)
+  let mut redis_conn = state.redis_connection.clone();
+  let redis_key = format!("refresh_token:{}", refresh_token);
+  let ttl = (expires_at - Utc::now()).num_seconds() as u64;
+
+  let _: () = redis_conn
+    .set_ex(&redis_key, user_id.to_string(), ttl)
+    .await
+    .map_err(|_| AppError::Internal("Redis error"))?;
+
+  Ok(refresh_token)
+}
+
 pub async fn refresh_token(
   State(state): State<AppState>,
   Json(payload): Json<RefreshToken>,
@@ -114,7 +138,17 @@ pub async fn signup(
         .unwrap_or(AppError::Internal("Internal server error"))
     })?;
 
-  Ok((StatusCode::CREATED, Json(UserResponse::from(user))))
+  let access_token = generate_jwt(user.id, user.email.clone())?;
+  let refresh_token: String = generate_refresh_token(state, user.id).await?;
+
+  Ok((
+    StatusCode::CREATED,
+    Json(AuthBody {
+      access_token,
+      refresh_token,
+      token_type: "Bearer".to_string(),
+    }),
+  ))
 }
 
 pub async fn login(
@@ -138,26 +172,7 @@ pub async fn login(
   }
 
   let access_token = generate_jwt(user.id, user.email.clone())?;
-
-  // Generate a new refresh token
-  let mut bytes = [0u8; 32];
-  rng().fill_bytes(&mut bytes);
-  let refresh_token = hex::encode(bytes);
-
-  // Save to Postgres
-  let expires_at = save_refresh_token(&state.pool, user.id, &refresh_token, 7)
-    .await
-    .map_err(|_| AppError::Internal("Database error"))?;
-
-  // Save to Redis (using TTL from days)
-  let mut redis_conn = state.redis_connection.clone();
-  let redis_key = format!("refresh_token:{}", refresh_token);
-  let ttl = (expires_at - Utc::now()).num_seconds() as u64;
-
-  let _: () = redis_conn
-    .set_ex(&redis_key, user.id.to_string(), ttl)
-    .await
-    .map_err(|_| AppError::Internal("Redis error"))?;
+  let refresh_token: String = generate_refresh_token(state, user.id).await?;
 
   Ok(Json(AuthBody {
     access_token,
