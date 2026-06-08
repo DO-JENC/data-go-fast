@@ -1,9 +1,15 @@
 import type { User } from "@/types/user"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 interface UserProps {
   email: string
   password: string
+}
+
+interface AuthResponse {
+  access_token: string
+  refresh_token: string
+  token_type: string
 }
 
 export function useAuth() {
@@ -12,22 +18,43 @@ export function useAuth() {
   const [initialFetchLoading, setInitialFetchLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetch("/api/users/me")
-      .then((res) => {
-        if (!res.ok) throw new Error("Not authenticated")
-        return res.json() as Promise<User>
+  const fetchUser = useCallback(async (token: string) => {
+    try {
+      const res = await fetch("/api/users/me", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       })
-      .then((currentUser) => setUser(currentUser))
-      .catch(() => setUser(null))
-      .finally(() => setInitialFetchLoading(false))
+      if (!res.ok) throw new Error("Not authenticated")
+      const currentUser = (await res.json()) as User
+      setUser(currentUser)
+      return currentUser
+    } catch {
+      setUser(null)
+      localStorage.removeItem("access_token")
+      return null
+    } finally {
+      setInitialFetchLoading(false)
+    }
   }, [])
+
+  useEffect(() => {
+    const initAuth = async () => {
+      const token = localStorage.getItem("access_token")
+      if (token) {
+        await fetchUser(token)
+      } else {
+        setInitialFetchLoading(false)
+      }
+    }
+    void initAuth()
+  }, [fetchUser])
 
   const login = async ({ email, password }: UserProps) => {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch("/api/login", {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -38,6 +65,10 @@ export function useAuth() {
       if (!res.ok) {
         throw new Error(`Error: ${res.status} - Failed to login`)
       }
+
+      const data = (await res.json()) as AuthResponse
+      localStorage.setItem("access_token", data.access_token)
+      return await fetchUser(data.access_token)
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message || "Something went wrong")
@@ -53,7 +84,7 @@ export function useAuth() {
     setError(null)
 
     try {
-      const res = await fetch("/api/signup", {
+      const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -65,9 +96,9 @@ export function useAuth() {
         throw new Error(`Error: ${res.status} - Failed to sign up`)
       }
 
-      const createdUser = (await res.json()) as User
-      setUser(createdUser)
-      return createdUser
+      const data = (await res.json()) as AuthResponse
+      localStorage.setItem("access_token", data.access_token)
+      return await fetchUser(data.access_token)
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message || "Something went wrong")
@@ -78,10 +109,16 @@ export function useAuth() {
     }
   }
 
+  const logout = () => {
+    localStorage.removeItem("access_token")
+    setUser(null)
+  }
+
   return {
     user,
     signup,
     login,
+    logout,
     loading,
     initialFetchLoading,
     error,
