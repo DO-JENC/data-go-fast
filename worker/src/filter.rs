@@ -64,7 +64,7 @@ pub fn apply_filter(
   // Find which column index to compare against
   let col_index = headers
     .iter()
-    .position(|h| h == column)
+    .position(|h| h.eq_ignore_ascii_case(column))
     .ok_or_else(|| format!("Column '{}' not found in CSV", column))?;
 
   let mut result = Vec::new();
