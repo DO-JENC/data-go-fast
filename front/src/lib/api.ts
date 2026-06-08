@@ -3,6 +3,8 @@
  * Automatically handles JWT token injection and provides a cleaner interface for requests.
  */
 
+const TOKEN_KEY = "access_token"
+
 interface RequestOptions extends RequestInit {
   params?: Record<string, string>
 }
@@ -11,7 +13,7 @@ async function request<T>(
   endpoint: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const token = localStorage.getItem("access_token")
+  const token = localStorage.getItem(TOKEN_KEY)
 
   const headers: HeadersInit = {
     "Content-Type": "application/json",
@@ -41,7 +43,7 @@ async function request<T>(
 
   if (response.status === 401) {
     // Global logout on unauthorized
-    localStorage.removeItem("access_token")
+    localStorage.removeItem(TOKEN_KEY)
     window.location.href = "/login"
   }
 
@@ -80,4 +82,9 @@ export const api = {
 
   delete: <T>(url: string, options?: RequestOptions) =>
     request<T>(url, { ...options, method: "DELETE" }),
+
+  // Token management
+  setToken: (token: string) => localStorage.setItem(TOKEN_KEY, token),
+  clearToken: () => localStorage.removeItem(TOKEN_KEY),
+  getToken: () => localStorage.getItem(TOKEN_KEY),
 }
