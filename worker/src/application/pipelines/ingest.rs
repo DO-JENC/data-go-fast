@@ -1,57 +1,68 @@
-// use common::infra::s3::config::S3Instance;
-// use common::queue::models::Job;
-// use s3::bucket::Bucket;
-// use sqlx::Row;
-// use sqlx::types::Json;
-// use sqlx::{Pool, Postgres, postgres::PgRow, query};
-// use uuid::Uuid;
+use common::infra::database::job::update_job_status;
+use common::infra::s3::config::S3Instance;
+use common::queue::models::Job;
+use sqlx::Row;
+use sqlx::types::Json;
+use sqlx::{Pool, Postgres, query};
+use uuid::Uuid;
 
-// async fn get_document(job: Job, s3_instance: S3Instance) -> Result<String, String> {
-//   let mut bucket: Box<Bucket> = Bucket::new(
-//     &s3_instance.bucket_name,
-//     s3_instance.region.clone(),
-//     s3_instance.credentials.clone(),
-//   )
-//   .unwrap();
-//   bucket.set_path_style();
+use crate::filter::download_from_s3;
 
-//   let file_name: String = format!(
-//     "{}.{:?}",
-//     job.datasource_id.trim_start_matches("s3://data-go-fast/"),
-//     job.pipeline.r#type
-//   );
-//   match bucket.get_object(file_name).await {
-//     Ok(response) => Ok(response.to_string().map_err(|e| e.to_string())?),
-//     Err(error) => return Err(error.to_string()),
-//   }
-// }
+pub async fn ingest_json(pool: &Pool<Postgres>, s3: &S3Instance, job: &Job) {
+  let json_bytes = match download_from_s3(s3, &job.datasource_id).await {
+    Ok(bytes) => bytes,
+    Err(e) => {
+      eprintln!("Failed to download from S3: {}", e);
+      let _ = update_job_status(pool, &job.job_id, "error").await;
+      return;
+    }
+  };
 
-// pub async fn ingest_json(
-//   job: Job,
-//   s3_instance: S3Instance,
-//   pool: Pool<Postgres>,
-// ) -> Result<PgRow, String> {
-//   let request: PgRow = query("SELECT id FROM datasources WHERE s3_id = $1")
-//     .bind(job.datasource_id.clone())
-//     .fetch_one(&pool)
-//     .await
-//     .map_err(|e| e.to_string())?;
-//   let job_id: Uuid = request.get("id");
-//   let document = get_document(job, s3_instance).await?;
+  let json_string: String = match String::from_utf8(json_bytes) {
+    Ok(str) => str,
+    Err(e) => {
+      eprintln!("Failed to convert bytes to string: {}", e);
+      let _ = update_job_status(pool, &job.job_id, "error").await;
+      return;
+    }
+  };
 
-//   match query(
-//     "
-//         INSERT INTO
-//         json_table (datasource_id, document)
-//         VALUES ($1, $2) RETURNING *;
-//     ",
-//   )
-//   .bind(job_id)
-//   .bind(Json(document))
-//   .fetch_one(&pool)
-//   .await
-//   {
-//     Ok(response) => Ok(response),
-//     Err(e) => return Err(e.to_string()),
-//   }
-// }
+  println!("Datasource_id: {}", &job.datasource_id);
+  let request = query("SELECT id FROM datasources WHERE s3_id = $1")
+    .bind(&job.datasource_id)
+    .fetch_one(pool)
+    .await;
+
+  println!("Request: {:?}", request);
+
+  let datasource_id: Uuid = match request {
+    Ok(response) => response.get("id"),
+    Err(e) => {
+      eprintln!("Failed to get datasource ID: {}", e);
+      let _ = update_job_status(pool, &job.job_id, "error").await;
+      return;
+    }
+  };
+
+  println!("Datasource_id: {}", datasource_id);
+
+  match query(
+    "
+            INSERT INTO
+            json_table (datasource_id, document)
+            VALUES ($1, $2) RETURNING *;
+        ",
+  )
+  .bind(datasource_id)
+  .bind(Json(json_string))
+  .fetch_one(pool)
+  .await
+  {
+    Ok(_) => println!("JSON File ingested."),
+    Err(e) => {
+      eprintln!("Failed to ingest JSON file: {}", e);
+      let _ = update_job_status(pool, &job.job_id, "error").await;
+      return;
+    }
+  }
+}
