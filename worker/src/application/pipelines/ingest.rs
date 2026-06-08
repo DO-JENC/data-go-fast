@@ -27,13 +27,10 @@ pub async fn ingest_json(pool: &Pool<Postgres>, s3: &S3Instance, job: &Job) {
     }
   };
 
-  println!("Datasource_id: {}", &job.datasource_id);
   let request = query("SELECT id FROM datasources WHERE s3_id = $1")
     .bind(&job.datasource_id)
     .fetch_one(pool)
     .await;
-
-  println!("Request: {:?}", request);
 
   let datasource_id: Uuid = match request {
     Ok(response) => response.get("id"),
@@ -43,8 +40,6 @@ pub async fn ingest_json(pool: &Pool<Postgres>, s3: &S3Instance, job: &Job) {
       return;
     }
   };
-
-  println!("Datasource_id: {}", datasource_id);
 
   match query(
     "
