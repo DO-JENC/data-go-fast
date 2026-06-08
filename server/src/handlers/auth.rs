@@ -7,16 +7,61 @@ use argon2::{
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{EncodingKey, Header, encode};
+use redis::AsyncCommands;
 use std::env;
 use uuid::Uuid;
 
 use crate::{
   AppState,
   errors::AppError,
-  infra::database::user::{create_user, find_user_by_email},
-  models::auth::{AuthBody, AuthPayload, Claims},
-  models::user::UserResponse,
+  infra::database::{
+    auth::get_refresh_token,
+    user::{create_user, find_user_by_email, find_user_by_id},
+  },
+  models::{
+    auth::{AuthBody, AuthPayload, Claims, RefreshToken},
+    user::UserResponse,
+  },
 };
+
+pub async fn refresh_token(
+  State(state): State<AppState>,
+  Json(payload): Json<RefreshToken>,
+) -> Result<impl IntoResponse, AppError> {
+  let mut redis_conn = state.redis_connection.clone();
+  let redis_key = format!("refresh_token:{}", payload.refresh_token);
+
+  let user_id: Uuid = match redis_conn.get::<_, Option<String>>(&redis_key).await {
+    Ok(Some(id_str)) => {
+      Uuid::parse_str(&id_str).map_err(|_| AppError::Internal("Invalid ID format in cache"))?
+    }
+    _ => {
+      // Fallback to Postgres
+      let token_row = get_refresh_token(&state.pool, &payload.refresh_token)
+        .await
+        .map_err(|_| AppError::Internal("Database error"))?
+        .ok_or(AppError::Unauthorized("Invalid refresh token"))?;
+
+      if token_row.expires_at < Utc::now().naive_utc() {
+        return Err(AppError::Unauthorized("Refresh token expired"));
+      }
+
+      token_row.user_id
+    }
+  };
+
+  let user = find_user_by_id(&state.pool, user_id)
+    .await
+    .map_err(|_| AppError::Internal("Database error"))?
+    .ok_or(AppError::Unauthorized("User not found"))?;
+
+  let token = generate_jwt(user.id, user.email)?;
+
+  Ok(Json(AuthBody {
+    access_token: token,
+    token_type: "Bearer".to_string(),
+  }))
+}
 
 pub async fn signup(
   State(state): State<AppState>,
