@@ -11,7 +11,11 @@ use crate::{
 };
 
 use axum::{
-  Router, extract::DefaultBodyLimit, http::{HeaderValue, Method, StatusCode}, middleware, routing::{delete, get, post}
+  Router,
+  extract::DefaultBodyLimit,
+  http::{HeaderValue, Method, StatusCode},
+  middleware,
+  routing::{delete, get, post},
 };
 use tower_http::cors::{Any, CorsLayer};
 
