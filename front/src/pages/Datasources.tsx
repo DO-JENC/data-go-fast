@@ -6,11 +6,11 @@ export default function Datasources() {
   const { datasources, loading, error, removeDatasource } = useDatasources()
 
   return (
-    <div className="flex min-h-0 flex-1 gap-6 p-6 text-left">
+    <div className="flex min-h-0 flex-1 gap-6 p-6 text-left bg-background">
       <aside className="w-[280px] shrink-0">
         <HistoryPanel />
       </aside>
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto ">
         <h1 className="mb-2 mt-0 text-2xl font-medium">Datasources</h1>
         {loading && (
           <p className="text-sm text-muted-foreground">Chargement...</p>

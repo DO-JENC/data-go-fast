@@ -29,7 +29,7 @@ export function SignupForm() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const navigate = useNavigate()
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
 
     if (password !== confirmPassword) {
@@ -147,8 +147,8 @@ export function SignupForm() {
           </FieldGroup>
         </form>
       </CardContent>
-      <CardFooter className="flex flex-col border-t-0 bg-muted/30 py-3">
-        <div className="text-center text-sm text-muted-foreground py-3">
+      <CardFooter className="flex flex-col border-t-0 0 py-3 bg-surface">
+        <div className="text-center text-sm text-muted-foreground py-3 ">
           Already have an account?{" "}
           <Link
             to="/login"
