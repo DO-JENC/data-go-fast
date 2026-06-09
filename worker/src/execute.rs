@@ -1,6 +1,6 @@
 use common::queue::models::Op;
 
-use crate::filter;
+use crate::{aggregate, filter};
 
 pub trait Operation {
   async fn execute_on_bytes(&self, csv_bytes: &[u8]) -> Result<Vec<u8>, String>;
@@ -14,7 +14,10 @@ impl Operation for Op {
         operator,
         value,
       } => filter::apply_filter(csv_bytes, column, operator, value),
-      _ => Err("Operation not implemented in worker".into()),
+      Op::Aggregate { columns, functions } => {
+        aggregate::aggregate_csv(csv_bytes, columns, functions)
+      }
+      Op::Ingest { .. } => Err("Ingest is not handled in worker".into()),
     }
   }
 }

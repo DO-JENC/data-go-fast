@@ -44,6 +44,7 @@ pub async fn create_datasource_from_s3(
   base_name: &str,
   group_id: &Uuid,
   size: f64,
+  file_type: DatasourceType,
 ) -> Result<Uuid, sqlx::Error> {
   // Extract datasource ID from s3_id: "s3://bucket/group/<uuid>.ext"
   let id = s3_id
@@ -71,7 +72,7 @@ pub async fn create_datasource_from_s3(
     .bind(id)
     .bind(s3_id)
     .bind(&name)
-    .bind(DatasourceType::Csv)
+    .bind(file_type)
     .bind(size)
     .bind(group_id)
     .execute(pool)
