@@ -3,7 +3,7 @@ import DatasourceForm from "./data-forms/datasource-form"
 import JobForm from "./data-forms/job-form"
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card"
 import { Button } from "@/components/ui/button"
-
+import { cn } from "@/lib/utils"
 
 export default function FormInfo() {
   const [toggleCreate, setCreate] = useState<string>("datasource")
@@ -11,29 +11,37 @@ export default function FormInfo() {
   return (
     <Card
         size="sm"
-        className="h-full bg-white shadow-sm transition-shadow hover:shadow-md"
+        className="h-full gap-0 bg-white shadow-sm transition-shadow hover:shadow-md"
       >
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
               <Button
                 disabled={toggleCreate === "datasource"}
-                className="rounded-sm! w-50/100 bg-[#8828ad] text-white shadow-sm transition-all hover:bg-[#8828ad]/90 active:scale-[0.98]"
-                // size="default"
+                className={cn(
+                  "rounded-t-sm! w-50/100 shadow-sm transition-all active:scale-[0.98] disabled:opacity-100",
+                  toggleCreate === "datasource"
+                    ? "bg-[#8828ad] text-white hover:bg-[#8828ad]/90"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200",
+                )}
                 onClick={() => setCreate("datasource")}
               >
                 Datasource
               </Button>
               <Button
                 disabled={toggleCreate === "job"}
-                className="rounded-sm! w-50/100 bg-[#8828ad] text-white shadow-sm transition-all hover:bg-[#8828ad]/90 active:scale-[0.98]"
-                // size="default"
+                className={cn(
+                  "rounded-t-sm! w-50/100 shadow-sm transition-all active:scale-[0.98] disabled:opacity-100",
+                  toggleCreate === "job"
+                    ? "bg-[#8828ad] text-white hover:bg-[#8828ad]/90"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200",
+                )}
                 onClick={() => setCreate("job")}
               >
                 Job
               </Button>
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <CardContent className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm bg-gray-300 h-full border-t-gray-300 mx-4 rounded-b-sm!">
           {
             toggleCreate === "datasource"
               ? <DatasourceForm/>
