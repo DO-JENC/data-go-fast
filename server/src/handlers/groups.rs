@@ -1,9 +1,16 @@
 use crate::AppState;
+use crate::api::middleware::AuthenticatedUser;
 use crate::errors::AppError;
 use crate::infra::database::group::{
-  add_user_to_group, create_group, delete_group, get_groups, list_group_members,
+  add_user_to_group, count_groups_by_user, create_group, delete_group, get_groups,
+  get_groups_by_user, list_group_members,
 };
-use crate::models::group::{CreateGroupRequest, GroupResponse, JoinGroupRequest, MemberResponse};
+use crate::models::auth::Claims;
+use crate::models::group::{
+  CreateGroupRequest, GroupResponse, JoinGroupRequest, MemberResponse, PaginatedGroupsResponse,
+  PaginationParams,
+};
+use axum::extract::Query;
 use axum::response::IntoResponse;
 use axum::{
   Json,
@@ -14,36 +21,42 @@ use uuid::Uuid;
 
 pub async fn create_group_handler(
   State(state): State<AppState>,
+  AuthenticatedUser(claims): AuthenticatedUser,
   Json(payload): Json<CreateGroupRequest>,
-) -> Result<(StatusCode, Json<GroupResponse>), (StatusCode, String)> {
+) -> Result<(StatusCode, Json<GroupResponse>), AppError> {
   let group = create_group(&state.pool, &payload.name)
     .await
     .map_err(|e| {
-      if let Some(db_err) = e.as_database_error()
-        && db_err.is_unique_violation()
-      {
-        return (StatusCode::CONFLICT, "Group already exists".to_string());
+      if let Some(db_err) = e.as_database_error() {
+        if db_err.is_unique_violation() {
+          return AppError::Conflict("Group name already taken");
+        }
       }
-      (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+      AppError::Internal("Error creating group")
     })?;
+
+  // Auto-join the creator
+  add_user_to_group(&state.pool, claims.sub, group.id)
+    .await
+    .map_err(|_| AppError::Internal("Error adding creator to group"))?;
 
   Ok((StatusCode::CREATED, Json(GroupResponse::from(group))))
 }
 
 pub async fn join_group_handler(
   State(state): State<AppState>,
+  AuthenticatedUser(claims): AuthenticatedUser,
   Path(group_id): Path<Uuid>,
-  Json(payload): Json<JoinGroupRequest>,
-) -> Result<StatusCode, (StatusCode, String)> {
-  add_user_to_group(&state.pool, payload.user_id, group_id)
+) -> Result<StatusCode, AppError> {
+  add_user_to_group(&state.pool, claims.sub, group_id)
     .await
     .map_err(|e| {
-      if let Some(db_err) = e.as_database_error()
-        && db_err.is_unique_violation()
-      {
-        return (StatusCode::CONFLICT, "User already in group".to_string());
+      if let Some(db_err) = e.as_database_error() {
+        if db_err.is_unique_violation() {
+          return AppError::Conflict("Already a member of this group");
+        }
       }
-      (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+      AppError::Internal("Error joining group")
     })?;
 
   Ok(StatusCode::OK)
@@ -52,10 +65,10 @@ pub async fn join_group_handler(
 pub async fn list_members_handler(
   State(state): State<AppState>,
   Path(group_id): Path<Uuid>,
-) -> Result<Json<Vec<MemberResponse>>, (StatusCode, String)> {
+) -> Result<Json<Vec<MemberResponse>>, AppError> {
   let members = list_group_members(&state.pool, group_id)
     .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    .map_err(|_| AppError::Internal("Error listing members"))?;
 
   Ok(Json(members))
 }
@@ -73,10 +86,20 @@ pub async fn delete_group_handler(
 
 pub async fn get_groups_handler(
   State(state): State<AppState>,
+  AuthenticatedUser(claims): AuthenticatedUser,
+  Query(params): Query<PaginationParams>,
 ) -> Result<impl IntoResponse, AppError> {
-  let groups = get_groups(&state.pool)
-    .await
-    .map_err(|_| AppError::Internal("Error retrieving groups from database"))?;
+  let page = params.page.max(1);
+  let page_size = params.page_size.clamp(1, 50);
 
-  Ok(Json(groups))
+  let (groups, total) = tokio::try_join!(
+    get_groups_by_user(&state.pool, claims.sub, page, page_size),
+    count_groups_by_user(&state.pool, claims.sub),
+  )
+  .map_err(|_| AppError::Internal("Error retrieving groups"))?;
+
+  Ok(Json(PaginatedGroupsResponse {
+    groups: groups.into_iter().map(GroupResponse::from).collect(),
+    total,
+  }))
 }

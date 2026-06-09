@@ -2,6 +2,57 @@ use crate::models::group::{Group, MemberResponse};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+pub async fn get_groups_by_user(
+  pool: &PgPool,
+  user_id: Uuid,
+  page: i64,
+  page_size: i64,
+) -> Result<Vec<Group>, sqlx::Error> {
+  let offset = (page - 1) * page_size;
+  sqlx::query_as::<_, Group>(
+    "SELECT g.id, g.name
+         FROM groups g
+         JOIN user_groups ug ON g.id = ug.group_id
+         WHERE ug.user_id = $1
+         ORDER BY g.name
+         LIMIT $2 OFFSET $3",
+  )
+  .bind(user_id)
+  .bind(page_size)
+  .bind(offset)
+  .fetch_all(pool)
+  .await
+}
+
+pub async fn count_groups_by_user(pool: &PgPool, user_id: Uuid) -> Result<i64, sqlx::Error> {
+  let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM user_groups WHERE user_id = $1")
+    .bind(user_id)
+    .fetch_one(pool)
+    .await?;
+  Ok(row.0)
+}
+
+pub async fn search_groups_excluding_user(
+  pool: &PgPool,
+  user_id: Uuid,
+  query: &str,
+) -> Result<Vec<Group>, sqlx::Error> {
+  let pattern = format!("%{}%", query.to_lowercase());
+  sqlx::query_as::<_, Group>(
+    "SELECT id, name FROM groups
+         WHERE LOWER(name) LIKE $1
+           AND id NOT IN (
+               SELECT group_id FROM user_groups WHERE user_id = $2
+           )
+         ORDER BY name
+         LIMIT 20",
+  )
+  .bind(pattern)
+  .bind(user_id)
+  .fetch_all(pool)
+  .await
+}
+
 pub async fn get_groups(pool: &PgPool) -> Result<Vec<Group>, sqlx::Error> {
   let groups = sqlx::query_as::<_, Group>("SELECT * FROM groups")
     .fetch_all(pool)
