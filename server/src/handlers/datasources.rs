@@ -20,12 +20,20 @@ use crate::S3Instance;
 #[derive(Deserialize)]
 pub struct DatasourceFilters {
   pub group_id: Option<Uuid>,
+  pub limit: Option<i64>,
+  pub offset: Option<i64>,
+}
+
+#[derive(serde::Serialize)]
+pub struct PaginatedResponse<T> {
+  pub items: Vec<T>,
+  pub total: i64,
 }
 
 pub async fn get_all_datasources(
   State(state): State<AppState>,
   Query(filters): Query<DatasourceFilters>,
-) -> Result<Json<Vec<Datasource>>, (StatusCode, String)> {
+) -> Result<Json<PaginatedResponse<Datasource>>, (StatusCode, String)> {
   let group_id = match filters.group_id {
     Some(id) => id,
     None => {
@@ -34,21 +42,36 @@ pub async fn get_all_datasources(
     }
   };
 
-  let query = r#"
+  let limit = filters.limit.unwrap_or(10);
+  let offset = filters.offset.unwrap_or(0);
+
+  let total_query = "SELECT COUNT(*) FROM datasources WHERE group_id = $1";
+  let total: i64 = sqlx::query_scalar(total_query)
+    .bind(group_id)
+    .fetch_one(&state.pool)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+  let items_query = r#"
         SELECT id, s3_id, name, file_type, size, created_at, group_id
         FROM datasources
         WHERE group_id = $1
+        ORDER BY created_at DESC
+        LIMIT $2 OFFSET $3
   "#;
 
-  let datasources = sqlx::query_as::<_, Datasource>(query)
+  let datasources = sqlx::query_as::<_, Datasource>(items_query)
     .bind(group_id)
+    .bind(limit)
+    .bind(offset)
     .fetch_all(&state.pool)
-    .await;
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-  match datasources {
-    Ok(dt) => Ok(Json(dt)),
-    Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
-  }
+  Ok(Json(PaginatedResponse {
+    items: datasources,
+    total,
+  }))
 }
 
 async fn fetch_datasource(
