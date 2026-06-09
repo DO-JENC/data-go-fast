@@ -33,4 +33,10 @@ pub enum Op {
     operator: String, // > , < , >= , <= , == , !=
     value: Value,
   },
+
+  #[serde(rename = "aggregate")]
+  Aggregate {
+    columns: Vec<String>,
+    functions: Vec<String>, // [sum , avg , median , min , max , count]
+  },
 }

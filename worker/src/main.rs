@@ -1,3 +1,4 @@
+mod aggregate;
 mod execute;
 mod filter;
 mod utils;
@@ -61,7 +62,13 @@ async fn job_treatment(job: Job) {
     }
   }
 
-  let new_s3_id = match upload_to_s3(&s3, &current_bytes, &group_uuid, "csv").await {
+  let is_aggregate = job
+    .pipeline
+    .iter()
+    .any(|op| matches!(op, Op::Aggregate { .. }));
+  let ext = if is_aggregate { "json" } else { "csv" };
+
+  let new_s3_id = match upload_to_s3(&s3, &current_bytes, &group_uuid, ext).await {
     Ok(id) => id,
     Err(e) => {
       eprintln!("Failed to upload to S3: {}", e);
@@ -73,7 +80,22 @@ async fn job_treatment(job: Job) {
   let size_mb = current_bytes.len() as f64 / (1024.0 * 1024.0);
   let base_name = job.name.clone();
 
-  match create_datasource_from_s3(&pool, &new_s3_id, &base_name, &group_uuid, size_mb).await {
+  let file_type = if is_aggregate {
+    common::infra::database::datasource::DatasourceType::Json
+  } else {
+    common::infra::database::datasource::DatasourceType::Csv
+  };
+
+  match create_datasource_from_s3(
+    &pool,
+    &new_s3_id,
+    &base_name,
+    &group_uuid,
+    size_mb,
+    file_type,
+  )
+  .await
+  {
     Ok(new_id) => {
       println!("Datasource created with ID: {}", new_id);
       if let Err(e) = update_job_result(&pool, &job.job_id, &new_id).await {
