@@ -16,6 +16,7 @@ import "./App.css"
 import { AppSidebar } from "./components/layout/app-sidebar"
 import { SidebarProvider, SidebarTrigger } from "./components/ui/sidebar"
 import { AuthProvider } from "./context/auth-context"
+import { GroupProvider } from "./context/group-context"
 import { useAuth } from "./hooks/use-auth"
 
 /**
@@ -43,7 +44,9 @@ function ProtectedLayout() {
       {/* Teleport the trigger into the header, next to the logo */}
       {portalTarget && ReactDOM.createPortal(<SidebarTrigger />, portalTarget)}
       <div className="relative flex w-full min-h-[calc(100vh-120px)] z-0">
-        <AppSidebar />
+        <GroupProvider>
+          <AppSidebar />
+        </GroupProvider>
         {/* Main content layout */}
         <main className="flex flex-1 flex-col bg-[var(--bg)] p-6 w-full">
           <Outlet />
