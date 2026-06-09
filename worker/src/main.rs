@@ -1,5 +1,6 @@
 mod execute;
 mod filter;
+mod utils;
 
 use apalis::prelude::*;
 use apalis_redis::RedisStorage;
@@ -11,7 +12,7 @@ use common::queue::models::{Job, Op};
 use common::queue::storage::get_queue_storage;
 
 use crate::execute::Operation;
-use crate::filter::{download_from_s3, parse_s3_id, upload_to_s3};
+use crate::utils::{download_from_s3, parse_s3_id, upload_to_s3};
 
 async fn job_treatment(job: Job) {
   println!("Processing job: {:?}", job.job_id);
