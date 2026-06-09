@@ -5,10 +5,14 @@ use argon2::{
   },
 };
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
-use axum_extra::extract::CookieJar;
+use axum_extra::{
+  TypedHeader,
+  extract::CookieJar,
+  headers::{Authorization, authorization::Bearer},
+};
 use chrono::{Duration as ChronoDuration, Utc};
 use cookie::{Cookie, SameSite};
-use jsonwebtoken::{EncodingKey, Header, encode};
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use rand::{Rng, rng};
 use redis::AsyncCommands;
 use std::env;
@@ -28,6 +32,7 @@ use crate::{
 pub async fn logout(
   State(state): State<AppState>,
   jar: CookieJar,
+  bearer: Option<TypedHeader<Authorization<Bearer>>>,
 ) -> Result<impl IntoResponse, AppError> {
   let refresh_token = jar
     .get("refresh_token")
@@ -35,6 +40,33 @@ pub async fn logout(
     .ok_or(AppError::Unauthorized("No refresh token found"))?;
 
   let mut redis_conn = state.redis_connection.clone();
+
+  // Block list the access token if one was provided
+  if let Some(TypedHeader(auth)) = bearer {
+    // Decode without validating expiry so we can still blocklist tokens that are about to expire
+    let mut validation = Validation::default();
+    validation.validate_exp = false;
+
+    let token_data = decode::<Claims>(
+      auth.token(),
+      &DecodingKey::from_secret(&state.jwt_secret.as_ref()),
+      &validation,
+    )
+    .map_err(|_| AppError::Unauthorized("Invalid access token"))?;
+
+    let now = Utc::now().timestamp() as usize;
+    let remaining = token_data.claims.exp.saturating_sub(now);
+
+    if remaining > 0 {
+      let blocklist_key = format!("blocklist:{}", auth.token());
+      let _: () = redis_conn
+        .set_ex(&blocklist_key, "1", remaining as u64)
+        .await
+        .map_err(|_| AppError::Internal("Redis error"))?;
+    }
+    // If remaining == 0 the token is already expired; no need to store it.
+  }
+
   let redis_key = format!("refresh_token:{}", refresh_token);
 
   // Remove from Redis
@@ -49,9 +81,7 @@ pub async fn logout(
     .map_err(|_| AppError::Internal("Database error"))?;
 
   // Clear cookie
-  let cookie = build_cookie("".to_string());
-
-  Ok((jar.remove(cookie), StatusCode::OK))
+  Ok((jar.remove(Cookie::from("refresh_token")), StatusCode::OK))
 }
 
 async fn generate_refresh_token(state: AppState, user_id: Uuid) -> Result<String, AppError> {
@@ -106,9 +136,18 @@ pub async fn refresh_token(
         return Err(AppError::Unauthorized("Refresh token expired"));
       }
 
+      let remaining_ttl = (token_row.expires_at - Utc::now().naive_utc()).num_seconds();
+      if remaining_ttl <= 0 {
+        return Err(AppError::Unauthorized("Refresh token expired"));
+      }
+
       // Sync back to Redis for faster subsequent access
       let _: () = redis_conn
-        .set_ex(&redis_key, token_row.user_id.to_string(), 7 * 24 * 60 * 60)
+        .set_ex(
+          &redis_key,
+          token_row.user_id.to_string(),
+          remaining_ttl as u64,
+        )
         .await
         .map_err(|_| AppError::Internal("Redis error"))?;
 
