@@ -5,16 +5,16 @@ use crate::{
     auth::{login, logout, refresh_token, signup},
     datasources::*,
     groups::*,
-    users::*,
     jobs::*,
+    users::*,
   },
 };
 
 use axum::{
   Router,
+  extract::DefaultBodyLimit,
   http::StatusCode,
   middleware,
-  extract::DefaultBodyLimit,
   routing::{delete, get, post},
 };
 
