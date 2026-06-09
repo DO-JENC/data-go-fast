@@ -7,6 +7,27 @@ pub struct Group {
   pub name: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct PaginatedGroupsResponse {
+  pub groups: Vec<GroupResponse>,
+  pub total: i64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PaginationParams {
+  #[serde(default = "default_page")]
+  pub page: i64,
+  #[serde(default = "default_page_size")]
+  pub page_size: i64,
+}
+
+fn default_page() -> i64 {
+  1
+}
+fn default_page_size() -> i64 {
+  5
+}
+
 #[derive(Debug, Deserialize)]
 pub struct CreateGroupRequest {
   pub name: String,
