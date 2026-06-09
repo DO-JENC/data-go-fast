@@ -8,8 +8,8 @@ import type { Job } from "@/types/job"
 export default function Datasources() {
   const { removeDatasource } = useDatasources()
   const [selected, setSelected] = useState<{
-    item: Datasource | Job
-    type: "datasource" | "job"
+    item: Datasource | Job | string
+    type: "datasource" | "job" | "form"
   } | null>(null)
 
   return (

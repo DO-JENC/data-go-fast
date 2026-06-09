@@ -11,7 +11,7 @@ import type { Job } from "@/types/job"
 export default function TreePanel({
   onSelect,
 }: {
-  onSelect: (item: Datasource | Job, type: "datasource" | "job") => void
+  onSelect: (item: Datasource | Job | string, type: "datasource" | "job" | "form") => void
 }) {
   const { datasources, loading: dsLoading, error: dsError } = useDatasources()
   const { jobs, loading: jobsLoading, error: jobsError } = useJobs()
@@ -123,6 +123,10 @@ export default function TreePanel({
           className="rounded-lg! mt-1 w-full bg-[#8828ad] text-white shadow-sm transition-all hover:bg-[#8828ad]/90 active:scale-[0.98]"
           size="default"
           variant="outline"
+          onClick={() => {
+            onSelect("form", "form")
+            
+          }}
         >
           <Plus />
         </Button>
