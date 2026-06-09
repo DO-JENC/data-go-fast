@@ -30,7 +30,7 @@ pub enum Op {
   #[serde(rename = "ingest")]
   Ingest {
     r#type: DatasourceType,
-    header: Option<String>,
+    header: bool,
   },
 
   #[serde(rename = "filter")]
