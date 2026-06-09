@@ -1,6 +1,10 @@
 use crate::AppState;
-use crate::infra::database::group::{add_user_to_group, create_group, list_group_members};
+use crate::errors::AppError;
+use crate::infra::database::group::{
+  add_user_to_group, create_group, get_groups, list_group_members,
+};
 use crate::models::group::{CreateGroupRequest, GroupResponse, JoinGroupRequest, MemberResponse};
+use axum::response::IntoResponse;
 use axum::{
   Json,
   extract::{Path, State},
@@ -55,4 +59,14 @@ pub async fn list_members_handler(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
   Ok(Json(members))
+}
+
+pub async fn get_groups_handler(
+  State(state): State<AppState>,
+) -> Result<impl IntoResponse, AppError> {
+  let groups = get_groups(&state.pool)
+    .await
+    .map_err(|_| AppError::Internal("Error retrieving groups from database"))?;
+
+  Ok(Json(groups))
 }
