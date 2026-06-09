@@ -1,5 +1,3 @@
-use std::os::raw;
-
 use common::infra::database::datasource::{DatasourceType, create_datasource_from_s3};
 use common::infra::database::job::{update_job_result, update_job_status};
 use common::infra::s3::config::S3Instance;
