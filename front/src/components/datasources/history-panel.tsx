@@ -3,10 +3,7 @@ import { Clock } from "lucide-react"
 
 export default function HistoryPanel() {
   return (
-    <Card
-      size="sm"
-      className="h-full bg-white shadow-sm ring-1 ring-[#f65d19]/30"
-    >
+    <Card size="sm" className="h-full shadow-sm ring-1 ring-[#f65d19]/30">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-[#f65d19]">
           <Clock className="size-4" />

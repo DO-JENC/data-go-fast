@@ -33,7 +33,7 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="mx-auto w-full max-w-md bg-white shadow-sm transition-shadow hover:shadow-md">
+    <Card className="mx-auto w-full max-w-md shadow-sm transition-shadow hover:shadow-md">
       <CardHeader className="space-y-4 pb-6 pt-8">
         <div className="space-y-1.5 text-center">
           <CardTitle className="text-2xl font-bold tracking-tight">
@@ -77,6 +77,7 @@ export function LoginForm() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
                   tabIndex={-1}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
                     <EyeOff className="size-4" />
