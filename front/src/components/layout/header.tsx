@@ -25,7 +25,7 @@ export function Header() {
   return (
     <CHeader className="py-1">
       <CContainer fluid>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 bg-background">
           <div id="sidebar-trigger-portal" />
           <Link to="/" className="flex items-center gap-3 no-underline!">
             <CHeaderBrand className="flex items-center gap-2 m-0">
