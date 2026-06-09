@@ -4,7 +4,10 @@ mod handlers;
 mod infra;
 mod models;
 
+use std::env;
+
 use crate::api::router::router as app_router;
+use crate::errors::AppError;
 use crate::infra::redis::config::init_redis_connection;
 use apalis_redis::RedisStorage;
 use common::infra::database::config::create_pool_from_env;
@@ -20,6 +23,7 @@ pub struct AppState {
   pub s3_instance: S3Instance,
   pub storage: RedisStorage<Job>,
   pub redis_connection: ConnectionManager,
+  pub jwt_secret: String,
 }
 
 #[tokio::main]
@@ -30,12 +34,14 @@ async fn main() {
   let redis_connection = init_redis_connection()
     .await
     .expect("Failed to connect to redis.");
+  let jwt_secret = env::var("JWT_SECRET").expect("JWT_SECRET not set");
 
   let state: AppState = AppState {
     pool,
     s3_instance,
     storage,
     redis_connection,
+    jwt_secret,
   };
 
   let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
