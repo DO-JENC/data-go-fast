@@ -311,7 +311,7 @@ export function AppSidebar() {
               )}
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button
-                className="w-full"
+                className="w-full rounded-md mt-3"
                 disabled={!selectedResult || submitting}
                 onClick={handleJoin}
               >
@@ -332,7 +332,7 @@ export function AppSidebar() {
               />
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button
-                className="w-full"
+                className="w-full rounded-md mt-3"
                 disabled={!newGroupName.trim() || submitting}
                 onClick={handleCreate}
               >
