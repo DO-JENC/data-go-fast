@@ -23,7 +23,9 @@ export default function Datasources() {
             {selected
               ? selected.type === "datasource"
                 ? `Datasources`
-              : `Job`
+              : selected.type === "job"
+                ? `Job`
+                : `Add an entity`
               : ``
             }
           </h1>
