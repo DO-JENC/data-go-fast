@@ -1,6 +1,7 @@
 mod aggregate;
 mod execute;
 mod filter;
+mod group_by;
 mod utils;
 
 use apalis::prelude::*;
