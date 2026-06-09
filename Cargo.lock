@@ -244,15 +244,10 @@ dependencies = [
  "axum",
  "axum-core",
  "bytes",
-<<<<<<< HEAD
  "cookie",
  "futures-core",
  "futures-util",
  "headers",
-=======
- "futures-core",
- "futures-util",
->>>>>>> 5c379d2f (feat(server): add logout endpoint)
  "http",
  "http-body",
  "http-body-util",

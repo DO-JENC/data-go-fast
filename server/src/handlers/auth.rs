@@ -88,7 +88,7 @@ async fn generate_refresh_token(state: AppState, user_id: Uuid) -> Result<String
   // Generate a new refresh token,
   let mut bytes = [0u8; 32];
   rng().fill_bytes(&mut bytes);
-  let refresh_token = hex::encode(bytes);
+  let refresh_token: String = hex::encode(bytes);
 
   // Save to Postgres
   let expires_at = save_refresh_token(&state.pool, user_id, &refresh_token, 7)
@@ -112,7 +112,7 @@ pub async fn refresh_token(
   State(state): State<AppState>,
   jar: CookieJar,
 ) -> Result<impl IntoResponse, AppError> {
-  let refresh_token = jar
+  let refresh_token: String = jar
     .get("refresh_token")
     .map(|c| c.value().to_string())
     .ok_or(AppError::Unauthorized("No refresh token found"))?;
