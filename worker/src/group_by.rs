@@ -62,7 +62,7 @@ fn write_csv(
   {
     let mut writer = Writer::from_writer(&mut result);
     writer
-      .write_record(&[by, &format!("{}_{}", column, function)])
+      .write_record([by, &format!("{}_{}", column, function)])
       .map_err(|e| format!("Failed to write CSV header: {}", e))?;
 
     for (key, values) in groups {
@@ -71,7 +71,7 @@ fn write_csv(
       }
       let val = compute_f64(values, function)?;
       writer
-        .write_record(&[key, &val.to_string()])
+        .write_record([key, &val.to_string()])
         .map_err(|e| format!("Failed to write CSV record: {}", e))?;
     }
   }
