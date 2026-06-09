@@ -1,18 +1,15 @@
 import { api } from "@/lib/api"
 import type { User } from "@/types/user"
+import type { ReactNode } from "react"
 import { useCallback, useEffect, useState } from "react"
+import {
+  AuthContext,
+  type AuthContextType,
+  type AuthResponse,
+  type UserProps,
+} from "./auth-context-base"
 
-interface UserProps {
-  email: string
-  password: string
-}
-
-interface AuthResponse {
-  access_token: string
-  token_type: string
-}
-
-export function useAuth() {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState<boolean>(false)
   const [initialFetchLoading, setInitialFetchLoading] = useState<boolean>(true)
@@ -20,7 +17,7 @@ export function useAuth() {
 
   const fetchUser = useCallback(async () => {
     try {
-      const currentUser = await api.get<User>("/users/me")
+      const currentUser = (await api.get("/users/me")) as User
       setUser(currentUser)
       return currentUser
     } catch {
@@ -48,10 +45,10 @@ export function useAuth() {
     setLoading(true)
     setError(null)
     try {
-      const data = await api.post<AuthResponse>("/auth/login", {
+      const data = (await api.post("/auth/login", {
         email,
         password,
-      })
+      })) as AuthResponse
       api.setToken(data.access_token)
       return await fetchUser()
     } catch (err: unknown) {
@@ -67,7 +64,6 @@ export function useAuth() {
   const signup = async ({ email, password }: UserProps) => {
     setLoading(true)
     setError(null)
-
     try {
       const data = await api.post<AuthResponse>("/auth/signup", {
         email,
@@ -96,13 +92,15 @@ export function useAuth() {
     }
   }
 
-  return {
+  const value: AuthContextType = {
     user,
-    signup,
-    login,
-    logout,
     loading,
     initialFetchLoading,
     error,
+    login,
+    signup,
+    logout,
   }
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
