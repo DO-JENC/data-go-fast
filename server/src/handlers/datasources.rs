@@ -1,13 +1,14 @@
 use axum::{
   Json,
   body::Bytes,
-  extract::{Multipart, Path, State},
+  extract::{Multipart, Path, Query, State},
   http::StatusCode,
   response::IntoResponse,
 };
 use common::infra::database::datasource::{Datasource, DatasourceType};
 use csv::Reader;
 use s3::{Bucket, error::S3Error};
+use serde::Deserialize;
 use serde_json::Value;
 use sqlx::{Error, Pool, Postgres, Row, postgres::PgRow, query};
 use std::str::FromStr;
@@ -16,11 +17,22 @@ use uuid::Uuid;
 use crate::AppState;
 use crate::S3Instance;
 
+#[derive(Deserialize)]
+pub struct DatasourceFilters {
+  pub group_id: Option<Uuid>,
+}
+
 pub async fn get_all_datasources(
   State(state): State<AppState>,
+  Query(filters): Query<DatasourceFilters>,
 ) -> Result<Json<Vec<Datasource>>, (StatusCode, String)> {
-  // TODO: use the connected user when authentication is implemented
-  let group_id: Uuid = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
+  let group_id = match filters.group_id {
+    Some(id) => id,
+    None => {
+      // Fallback for now if no group_id is provided, but ideally it should be mandatory or based on user's groups
+      Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap()
+    }
+  };
 
   let query = r#"
         SELECT id, s3_id, name, file_type, size, created_at, group_id

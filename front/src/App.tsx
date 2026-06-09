@@ -44,9 +44,7 @@ function ProtectedLayout() {
       {/* Teleport the trigger into the header, next to the logo */}
       {portalTarget && ReactDOM.createPortal(<SidebarTrigger />, portalTarget)}
       <div className="relative flex w-full min-h-[calc(100vh-120px)] z-0">
-        <GroupProvider>
-          <AppSidebar />
-        </GroupProvider>
+        <AppSidebar />
         {/* Main content layout */}
         <main className="flex flex-1 flex-col bg-[var(--bg)] p-6 w-full">
           <Outlet />
@@ -84,30 +82,32 @@ function PublicLayout() {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        {/* Global Header */}
-        <Header />
+      <GroupProvider>
+        <BrowserRouter>
+          {/* Global Header */}
+          <Header />
 
-        <div className="flex min-h-0 flex-1 flex-col">
-          <Routes>
-            {/* Protected Routes Group */}
-            <Route element={<ProtectedLayout />}>
-              <Route path="/" element={<Datasources />} />
-              <Route path="/datasources" element={<Datasources />} />
-            </Route>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <Routes>
+              {/* Protected Routes Group */}
+              <Route element={<ProtectedLayout />}>
+                <Route path="/" element={<Datasources />} />
+                <Route path="/datasources" element={<Datasources />} />
+              </Route>
 
-            {/* Public Routes Group */}
-            <Route element={<PublicLayout />}>
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/login" element={<Login />} />
-            </Route>
-          </Routes>
-        </div>
+              {/* Public Routes Group */}
+              <Route element={<PublicLayout />}>
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/login" element={<Login />} />
+              </Route>
+            </Routes>
+          </div>
 
-        {/* Global UI & Footer Elements */}
-        <Toaster />
-        <Footer />
-      </BrowserRouter>
+          {/* Global UI & Footer Elements */}
+          <Toaster />
+          <Footer />
+        </BrowserRouter>
+      </GroupProvider>
     </AuthProvider>
   )
 }
