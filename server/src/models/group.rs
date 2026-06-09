@@ -14,6 +14,11 @@ pub struct PaginatedGroupsResponse {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct SearchParams {
+  pub q: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct PaginationParams {
   #[serde(default = "default_page")]
   pub page: i64,
