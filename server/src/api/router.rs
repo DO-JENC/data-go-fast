@@ -26,37 +26,37 @@ fn auth_router() -> Router<AppState> {
     .route("/logout", post(logout))
 }
 
-fn datasources_router() -> Router<AppState> {
+fn datasources_router(state: AppState) -> Router<AppState> {
   Router::new()
     .route("/", get(get_all_datasources))
     .route("/{id}", get(get_datasource_by_id))
     .route("/", post(csv_ingestion_handler))
     .route("/{id}", delete(delete_datasource_by_id))
-    .layer(middleware::from_fn(auth_middleware))
+    .layer(middleware::from_fn_with_state(state, auth_middleware))
 }
 
-fn jobs_router() -> Router<AppState> {
+fn jobs_router(state: AppState) -> Router<AppState> {
   Router::new()
     .route("/", post(create_job_handler))
     .route("/", get(list_jobs_handler))
     .route("/{id}", get(get_job_by_id_handler))
-    .layer(middleware::from_fn(auth_middleware))
+    .layer(middleware::from_fn_with_state(state, auth_middleware))
 }
 
-fn users_router() -> Router<AppState> {
+fn users_router(state: AppState) -> Router<AppState> {
   Router::new()
     .route("/me", get(get_me))
     .route("/", get(|| async { StatusCode::NOT_IMPLEMENTED }))
     .route("/{id}", get(|| async { StatusCode::NOT_IMPLEMENTED }))
-    .layer(middleware::from_fn(auth_middleware))
+    .layer(middleware::from_fn_with_state(state, auth_middleware))
 }
 
-fn groups_router() -> Router<AppState> {
+fn groups_router(state: AppState) -> Router<AppState> {
   Router::new()
     .route("/", post(create_group_handler))
     .route("/{id}/join", post(join_group_handler))
     .route("/{id}/members", get(list_members_handler))
-    .layer(middleware::from_fn(auth_middleware))
+    .layer(middleware::from_fn_with_state(state, auth_middleware))
 }
 
 pub fn router(state: AppState) -> Router {
@@ -91,10 +91,10 @@ pub fn router(state: AppState) -> Router {
   Router::new()
     .route("/health", get(|| async { StatusCode::OK }))
     .nest("/auth", auth_router())
-    .nest("/datasources", datasources_router())
-    .nest("/jobs", jobs_router())
-    .nest("/users", users_router())
-    .nest("/groups", groups_router())
+    .nest("/datasources", datasources_router(state.clone()))
+    .nest("/jobs", jobs_router(state.clone()))
+    .nest("/users", users_router(state.clone()))
+    .nest("/groups", groups_router(state.clone()))
     .layer(cors)
     .with_state(state)
 }
