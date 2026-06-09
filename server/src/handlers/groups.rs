@@ -2,13 +2,12 @@ use crate::AppState;
 use crate::api::middleware::AuthenticatedUser;
 use crate::errors::AppError;
 use crate::infra::database::group::{
-  add_user_to_group, count_groups_by_user, create_group, delete_group, get_groups,
-  get_groups_by_user, list_group_members,
+  add_user_to_group, count_groups_by_user, create_group, delete_group, get_groups_by_user,
+  list_group_members, search_groups_excluding_user,
 };
-use crate::models::auth::Claims;
 use crate::models::group::{
-  CreateGroupRequest, GroupResponse, JoinGroupRequest, MemberResponse, PaginatedGroupsResponse,
-  PaginationParams,
+  CreateGroupRequest, GroupResponse, MemberResponse, PaginatedGroupsResponse, PaginationParams,
+  SearchParams,
 };
 use axum::extract::Query;
 use axum::response::IntoResponse;
@@ -71,6 +70,27 @@ pub async fn list_members_handler(
     .map_err(|_| AppError::Internal("Error listing members"))?;
 
   Ok(Json(members))
+}
+
+pub async fn search_groups_handler(
+  State(state): State<AppState>,
+  AuthenticatedUser(claims): AuthenticatedUser,
+  Query(params): Query<SearchParams>,
+) -> Result<impl IntoResponse, AppError> {
+  if params.q.trim().is_empty() {
+    return Ok(Json(Vec::<GroupResponse>::new()));
+  }
+
+  let groups = search_groups_excluding_user(&state.pool, claims.sub, &params.q)
+    .await
+    .map_err(|_| AppError::Internal("Error searching groups"))?;
+
+  Ok(Json(
+    groups
+      .into_iter()
+      .map(GroupResponse::from)
+      .collect::<Vec<_>>(),
+  ))
 }
 
 pub async fn delete_group_handler(
