@@ -26,10 +26,10 @@ pub async fn create_group_handler(
   let group = create_group(&state.pool, &payload.name)
     .await
     .map_err(|e| {
-      if let Some(db_err) = e.as_database_error() {
-        if db_err.is_unique_violation() {
-          return AppError::Conflict("Group name already taken");
-        }
+      if let Some(db_err) = e.as_database_error()
+        && db_err.is_unique_violation()
+      {
+        return AppError::Conflict("Group name already taken");
       }
       AppError::Internal("Error creating group")
     })?;
@@ -50,10 +50,10 @@ pub async fn join_group_handler(
   add_user_to_group(&state.pool, claims.sub, group_id)
     .await
     .map_err(|e| {
-      if let Some(db_err) = e.as_database_error() {
-        if db_err.is_unique_violation() {
-          return AppError::Conflict("Already a member of this group");
-        }
+      if let Some(db_err) = e.as_database_error()
+        && db_err.is_unique_violation()
+      {
+        return AppError::Conflict("Already a member of this group");
       }
       AppError::Internal("Error joining group")
     })?;
