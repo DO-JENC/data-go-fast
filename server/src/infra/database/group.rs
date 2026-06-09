@@ -19,6 +19,14 @@ pub async fn create_group(pool: &PgPool, name: &str) -> Result<Group, sqlx::Erro
 
   Ok(group)
 }
+pub async fn delete_group(pool: &PgPool, id: Uuid) -> Result<(), sqlx::Error> {
+  sqlx::query("DELETE FROM groups WHERE id=$1")
+    .bind(id)
+    .execute(pool)
+    .await?;
+
+  Ok(())
+}
 
 pub async fn add_user_to_group(
   pool: &PgPool,
