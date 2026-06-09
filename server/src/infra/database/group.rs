@@ -2,6 +2,14 @@ use crate::models::group::{Group, MemberResponse};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+pub async fn get_groups(pool: &PgPool) -> Result<Vec<Group>, sqlx::Error> {
+  let groups = sqlx::query_as::<_, Group>("SELECT * FROM groups")
+    .fetch_all(pool)
+    .await?;
+
+  Ok(groups)
+}
+
 pub async fn create_group(pool: &PgPool, name: &str) -> Result<Group, sqlx::Error> {
   let group =
     sqlx::query_as::<_, Group>("INSERT INTO groups (name) VALUES ($1) RETURNING id, name")

@@ -60,6 +60,7 @@ fn groups_router(state: AppState) -> Router<AppState> {
     .route("/", post(create_group_handler))
     .route("/{id}/join", post(join_group_handler))
     .route("/{id}/members", get(list_members_handler))
+    .route("/", get(get_groups_handler))
     .layer(middleware::from_fn_with_state(state, auth_middleware))
 }
 
