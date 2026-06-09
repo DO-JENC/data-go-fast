@@ -53,11 +53,6 @@ impl From<Group> for GroupResponse {
   }
 }
 
-#[derive(Debug, Deserialize)]
-pub struct JoinGroupRequest {
-  pub user_id: Uuid,
-}
-
 #[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct MemberResponse {
   pub id: Uuid,
