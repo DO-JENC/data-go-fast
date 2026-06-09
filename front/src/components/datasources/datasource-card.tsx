@@ -52,7 +52,7 @@ export default function DatasourceCard({
   return (
     <Card
       size="sm"
-      className="cursor-pointer bg-white shadow-sm transition-shadow hover:shadow-md"
+      className="cursor-pointer shadow-sm transition-shadow hover:shadow-md"
       onClick={() => setOpen((prev) => !prev)}
     >
       <CardHeader>
@@ -80,7 +80,7 @@ export default function DatasourceCard({
               >
                 <Trash2 className="size-4" />
               </AlertDialogTrigger>
-              <AlertDialogContent className="border-2 border-orange-500 ring-0 bg-white gap-2">
+              <AlertDialogContent className="border-2 border-orange-500 ring-0 gap-2">
                 <AlertDialogHeader>
                   <AlertDialogTitle>
                     Are you sure you want to delete this datasource?

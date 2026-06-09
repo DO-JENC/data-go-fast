@@ -46,7 +46,7 @@ export function SignupForm() {
   }
 
   return (
-    <Card className="mx-auto w-full max-w-md border-t-0 bg-white shadow-sm transition-shadow hover:shadow-md">
+    <Card className="mx-auto w-full max-w-md border-t-0 shadow-sm transition-shadow hover:shadow-md">
       <CardHeader className="space-y-3 pb-4 pt-6">
         <div className="space-y-1 text-center">
           <CardTitle className="text-xl font-bold tracking-tight">
