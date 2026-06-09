@@ -18,6 +18,12 @@ pub struct Job {
 pub type Pipeline = Vec<Op>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GroupByAggregate {
+  pub column: String,
+  pub function: String, // sum, avg, median, min, max, count
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 // `tag = "op"` means the JSON key `"op"` determines which variant we deserialize to
 #[serde(tag = "op")]
 pub enum Op {
@@ -38,5 +44,11 @@ pub enum Op {
   Aggregate {
     columns: Vec<String>,
     functions: Vec<String>, // [sum , avg , median , min , max , count]
+  },
+
+  #[serde(rename = "group_by")]
+  GroupBy {
+    by: String,
+    aggregate: GroupByAggregate,
   },
 }

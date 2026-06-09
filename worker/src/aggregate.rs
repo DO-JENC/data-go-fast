@@ -2,15 +2,15 @@ use csv::Reader;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 
-fn sum(values: &[f64]) -> f64 {
+pub fn sum(values: &[f64]) -> f64 {
   values.iter().sum()
 }
 
-fn avg(values: &[f64]) -> f64 {
+pub fn avg(values: &[f64]) -> f64 {
   sum(values) / values.len() as f64
 }
 
-fn min(values: &[f64]) -> f64 {
+pub fn min(values: &[f64]) -> f64 {
   values
     .iter()
     .copied()
@@ -18,7 +18,7 @@ fn min(values: &[f64]) -> f64 {
     .unwrap_or(f64::INFINITY)
 }
 
-fn max(values: &[f64]) -> f64 {
+pub fn max(values: &[f64]) -> f64 {
   values
     .iter()
     .copied()
@@ -26,11 +26,11 @@ fn max(values: &[f64]) -> f64 {
     .unwrap_or(f64::NEG_INFINITY)
 }
 
-fn count(values: &[f64]) -> f64 {
+pub fn count(values: &[f64]) -> f64 {
   values.len() as f64
 }
 
-fn median(values: &[f64]) -> f64 {
+pub fn median(values: &[f64]) -> f64 {
   let mut sorted = values.to_vec();
   sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
   let mid = sorted.len() / 2;
