@@ -7,7 +7,6 @@ mod models;
 use std::env;
 
 use crate::api::router::router as app_router;
-use crate::errors::AppError;
 use crate::infra::redis::config::init_redis_connection;
 use apalis_redis::RedisStorage;
 use common::infra::database::config::create_pool_from_env;
