@@ -1,7 +1,7 @@
 use crate::{AppState, models::auth::Claims};
 use axum::{
-  extract::{Request, State},
-  http::{StatusCode, header},
+  extract::{FromRequestParts, Request, State},
+  http::{StatusCode, header, request::Parts},
   middleware::Next,
   response::Response,
 };
@@ -51,4 +51,23 @@ pub async fn auth_middleware(
 
   // Continue down the router chain
   Ok(next.run(req).await)
+}
+
+pub struct AuthenticatedUser(pub Claims);
+
+impl<S> FromRequestParts<S> for AuthenticatedUser
+where
+  S: Send + Sync,
+{
+  type Rejection = StatusCode;
+
+  async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+    // Extract the Claims that were inserted by the middleware
+    parts
+      .extensions
+      .get::<Claims>()
+      .cloned()
+      .map(AuthenticatedUser)
+      .ok_or(StatusCode::UNAUTHORIZED)
+  }
 }
