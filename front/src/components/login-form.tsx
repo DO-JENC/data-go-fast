@@ -99,7 +99,7 @@ export function LoginForm() {
           </FieldGroup>
         </form>
       </CardContent>
-      <CardFooter className="flex flex-col border-t-0 bg-muted/30">
+      <CardFooter className="flex flex-col border-t-0 bg-surface">
         <div className="text-center text-sm text-muted-foreground py-4">
           Don't have an account?{" "}
           <Link

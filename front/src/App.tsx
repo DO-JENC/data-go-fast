@@ -46,7 +46,7 @@ function ProtectedLayout() {
       <div className="relative flex w-full min-h-[calc(100vh-120px)] z-0">
         <AppSidebar />
         {/* Main content layout */}
-        <main className="flex flex-1 flex-col bg-[var(--bg)] p-6 w-full">
+        <main className="flex flex-1 flex-col bg-background p-6 w-full">
           <Outlet />
         </main>
       </div>
@@ -73,7 +73,7 @@ function PublicLayout() {
   }
 
   return (
-    <main className="flex flex-1 flex-col bg-[var(--bg)] p-6">
+    <main className="flex flex-1 flex-col bg-[var(--bg)]">
       <Outlet />
     </main>
   )
@@ -87,7 +87,7 @@ function App() {
           {/* Global Header */}
           <Header />
 
-          <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex min-h-0 flex-1 flex-col bg-background">
             <Routes>
               {/* Protected Routes Group */}
               <Route element={<ProtectedLayout />}>
