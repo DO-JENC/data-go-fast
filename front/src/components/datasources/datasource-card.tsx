@@ -4,14 +4,15 @@ import type { Job } from "@/types/job"
 
 import DatasourceInfo from "../cards/datasource-info"
 import JobInfo from "../cards/job-info"
+import FormInfo from "../cards/form-info"
 
 export default function DatasourceCard({
   item,
   type,
   onDelete,
 }: {
-  item: Datasource | Job | null
-  type: "datasource" | "job" | null
+  item: Datasource | Job | string | null
+  type: "datasource" | "job" | "form" | null
   onDelete?: (id: string) => Promise<boolean>
 }) {
   if (!item || !type) {
@@ -34,6 +35,13 @@ export default function DatasourceCard({
        onDelete={onDelete}/>
     )
   }
+
+  if  (type === "form") {
+    return (
+      <FormInfo/>
+    )
+  }
+  
   // else case (for the moment only job but TODO : change when form added)
   const job = item as Job
   return(
