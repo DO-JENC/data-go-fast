@@ -1,7 +1,7 @@
 use crate::AppState;
 use crate::errors::AppError;
 use crate::infra::database::group::{
-  add_user_to_group, create_group, get_groups, list_group_members,
+  add_user_to_group, create_group, delete_group, get_groups, list_group_members,
 };
 use crate::models::group::{CreateGroupRequest, GroupResponse, JoinGroupRequest, MemberResponse};
 use axum::response::IntoResponse;
@@ -10,7 +10,6 @@ use axum::{
   extract::{Path, State},
   http::StatusCode,
 };
-
 use uuid::Uuid;
 
 pub async fn create_group_handler(
@@ -59,6 +58,17 @@ pub async fn list_members_handler(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
   Ok(Json(members))
+}
+
+pub async fn delete_group_handler(
+  State(state): State<AppState>,
+  Path(group_id): Path<Uuid>,
+) -> Result<impl IntoResponse, AppError> {
+  delete_group(&state.pool, group_id)
+    .await
+    .map_err(|_| AppError::Internal("Error deleting group"))?;
+
+  Ok(StatusCode::NO_CONTENT)
 }
 
 pub async fn get_groups_handler(
