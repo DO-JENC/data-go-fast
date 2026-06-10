@@ -10,7 +10,7 @@ RUN corepack enable
 
 WORKDIR /app
 
-COPY frontend/package.json frontend/pnpm-lock.yaml ./
+COPY front/package.json front/pnpm-lock.yaml ./
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile
@@ -21,7 +21,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 FROM deps AS builder
 
 # Copy source AFTER deps so the node_modules layer is cached
-COPY frontend/ .
+COPY front/ .
 
 # Pass build-time env vars (e.g. VITE_API_URL) via --build-arg
 ARG VITE_API_URL
@@ -39,7 +39,7 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 # Harden nginx: remove default config, use custom minimal one
 RUN rm /etc/nginx/conf.d/default.conf
-COPY --chown=appuser:appgroup nginx.conf /etc/nginx/conf.d/app.conf
+COPY --chown=appuser:appgroup front/nginx.conf /etc/nginx/conf.d/app.conf
 
 # Copy only the compiled static assets
 COPY --from=builder --chown=appuser:appgroup /app/dist /usr/share/nginx/html
