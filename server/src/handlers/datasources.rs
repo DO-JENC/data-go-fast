@@ -17,6 +17,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use sqlx::{Error, Pool, Postgres, Row, query};
 use std::str::FromStr;
+use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
 use crate::S3Instance;
@@ -25,19 +26,20 @@ use crate::{
   handlers::jobs::{add_job_to_postgres, add_job_to_redis},
 };
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct DatasourceFilters {
   pub group_id: Option<Uuid>,
   pub limit: Option<i64>,
   pub offset: Option<i64>,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Debug)]
 pub struct PaginatedResponse<T> {
   pub items: Vec<T>,
   pub total: i64,
 }
 
+#[instrument(skip(state))]
 pub async fn get_all_datasources(
   State(state): State<AppState>,
   Query(filters): Query<DatasourceFilters>,
@@ -58,7 +60,10 @@ pub async fn get_all_datasources(
     .bind(group_id)
     .fetch_one(&state.pool)
     .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    .map_err(|e| {
+      error!("Failed to fetch total datasources: {:?}", e);
+      (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+    })?;
 
   let items_query = r#"
         SELECT id, s3_id, name, file_type, size, created_at, group_id
@@ -74,7 +79,10 @@ pub async fn get_all_datasources(
     .bind(offset)
     .fetch_all(&state.pool)
     .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    .map_err(|e| {
+      error!("Failed to fetch datasources: {:?}", e);
+      (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+    })?;
 
   Ok(Json(PaginatedResponse {
     items: datasources,
@@ -96,6 +104,7 @@ async fn fetch_datasource(
   .await
 }
 
+#[instrument(skip(state))]
 pub async fn get_datasource_by_id(
   State(state): State<AppState>,
   Path(id): Path<Uuid>,
@@ -104,8 +113,14 @@ pub async fn get_datasource_by_id(
 
   match fetch_datasource(&state.pool, &id).await {
     Ok(Some(dt)) => Ok(Json(dt)),
-    Ok(None) => Err((StatusCode::NOT_FOUND, "Datasource not found".to_string())),
-    Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+    Ok(None) => {
+      warn!("Datasource not found: {}", id);
+      Err((StatusCode::NOT_FOUND, "Datasource not found".to_string()))
+    }
+    Err(e) => {
+      error!("Failed to fetch datasource {}: {:?}", id, e);
+      Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+    }
   }
 }
 
@@ -280,10 +295,12 @@ fn create_pipeline(metadata: &Metadata) -> Result<Pipeline, String> {
   }])
 }
 
+#[instrument(skip(state, multipart))]
 pub async fn csv_ingestion_handler(
   State(state): State<AppState>,
   multipart: Multipart,
 ) -> impl IntoResponse {
+  info!("Starting file ingestion");
   // Handle body request
   let FileUploadRequest {
     file_content,
@@ -292,7 +309,10 @@ pub async fn csv_ingestion_handler(
     metadata,
   } = match parse_multipart(multipart).await {
     Ok(val) => val,
-    Err(e) => return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)),
+    Err(e) => {
+      warn!("Failed to parse multipart: {:?}", e);
+      return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
+    }
   };
 
   let pipeline = match create_pipeline(&metadata) {
@@ -304,13 +324,16 @@ pub async fn csv_ingestion_handler(
       );
     }
   };
+  info!("Validating file: {} (size: {:.2} MB)", file_name, file_size);
 
   // Make sure file is a correct format
   if let Err(e) = validate_file_format(&file_content, &metadata.file_type) {
+    warn!("File validation failed for {}: {}", file_name, e);
     return (StatusCode::UNSUPPORTED_MEDIA_TYPE, e);
   }
 
   if metadata.file_type == DatasourceType::Csv && !metadata.header {
+    warn!("Headerless CSV rejected for {}", file_name);
     return (
       StatusCode::BAD_REQUEST,
       "Headerless CSV files are not yet supported".to_string(),
@@ -335,8 +358,14 @@ pub async fn csv_ingestion_handler(
   )
   .await
   {
-    Ok(s3_id) => s3_id,
-    Err(e) => return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)),
+    Ok(s3_id) => {
+      info!("File uploaded to S3: {}", s3_id);
+      s3_id
+    }
+    Err(e) => {
+      error!("Failed to upload file to S3: {:?}", e);
+      return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
+    }
   };
 
   // Add datasource to Postgres
@@ -381,19 +410,35 @@ pub async fn csv_ingestion_handler(
     return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
   };
 
-  (StatusCode::OK, "Upload file successful.".to_string())
+  match datasource_to_postgres {
+    Ok(_) => {
+      info!("Datasource {} added to database", file_uuid);
+      (StatusCode::OK, "Upload file successful.".to_string())
+    }
+    Err(e) => {
+      error!("Failed to add datasource to database: {:?}", e);
+      (StatusCode::BAD_REQUEST, format!("Error: {:?}", e))
+    }
+  }
 }
 
+#[instrument(skip(state))]
 pub async fn delete_datasource_by_id(
   State(state): State<AppState>,
   Path(id): Path<Uuid>,
 ) -> impl IntoResponse {
-  // TODO: authentication and authorization checks should be implemented here
+  info!("Attempting to delete datasource: {}", id);
 
   let datasource = match fetch_datasource(&state.pool, &id).await {
     Ok(Some(ds)) => ds,
-    Ok(None) => return (StatusCode::NOT_FOUND, "Datasource not found".to_string()),
-    Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+    Ok(None) => {
+      warn!("Datasource not found: {}", id);
+      return (StatusCode::NOT_FOUND, "Datasource not found".to_string());
+    }
+    Err(e) => {
+      error!("Failed to fetch datasource for deletion: {:?}", e);
+      return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
+    }
   };
 
   // Check active jobs
@@ -409,10 +454,14 @@ pub async fn delete_datasource_by_id(
   .await
   {
     Ok(row) => row.get::<bool, _>("is_active"),
-    Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+    Err(e) => {
+      error!("Failed to check active jobs for datasource: {:?}", e);
+      return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
+    }
   };
 
   if has_active_jobs {
+    warn!("Cannot delete datasource {} with active jobs", id);
     return (
       StatusCode::CONFLICT,
       "Cannot delete datasource with active jobs".to_string(),
@@ -421,19 +470,23 @@ pub async fn delete_datasource_by_id(
 
   // Delete from S3
   if let Err(e) = delete_file_from_s3(&state.s3_instance, &datasource.s3_id).await {
+    error!("S3 deletion failed for {}: {:?}", datasource.s3_id, e);
     return (
       StatusCode::INTERNAL_SERVER_ERROR,
       format!("S3 deletion failed: {:?}", e),
     );
   }
+  info!("Deleted from S3: {}", datasource.s3_id);
 
   // Delete from Postgres
   if let Err(e) = delete_datasource_from_postgres(&state.pool, &id).await {
+    error!("Database deletion failed for datasource {}: {:?}", id, e);
     return (
       StatusCode::INTERNAL_SERVER_ERROR,
       format!("Database deletion failed: {:?}", e),
     );
   }
+  info!("Deleted from database: {}", id);
 
   (
     StatusCode::OK,

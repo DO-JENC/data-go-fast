@@ -11,6 +11,7 @@ use crate::infra::redis::config::init_redis_connection;
 use apalis_redis::RedisStorage;
 use common::infra::database::config::create_pool_from_env;
 use common::infra::s3::config::{S3Instance, init_s3_instance};
+use common::logs::init_logging;
 use common::queue::models::Job;
 use common::queue::storage::get_queue_storage;
 use redis::aio::ConnectionManager;
@@ -27,6 +28,8 @@ pub struct AppState {
 
 #[tokio::main]
 async fn main() {
+  init_logging();
+
   let pool: Pool<Postgres> = create_pool_from_env().await.unwrap();
   let s3_instance: S3Instance = init_s3_instance();
   let storage: RedisStorage<Job> = get_queue_storage().await;
@@ -45,6 +48,8 @@ async fn main() {
 
   let port = env::var("SERVER_PORT").unwrap_or_else(|_| "3000".to_string());
   let addr = format!("0.0.0.0:{}", port);
+
+  tracing::info!("Starting server on {}", addr);
 
   let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
   let router = app_router(state);

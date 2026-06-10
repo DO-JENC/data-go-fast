@@ -15,3 +15,5 @@ rust-s3 = "0.37.2"
 aws-creds = "0.39.1"
 apalis = "0.7.4"
 apalis-redis = "0.7.4"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }

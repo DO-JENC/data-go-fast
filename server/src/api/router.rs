@@ -18,6 +18,7 @@ use axum::{
   routing::{delete, get, post},
 };
 use tower_http::cors::CorsLayer;
+use tower_http::trace::TraceLayer;
 
 const FILE_SIZE_LIMIT: usize = 1024 * 1024 * 1024; // 1GB
 
@@ -117,5 +118,6 @@ pub fn router(state: AppState) -> Router {
     .nest("/users", users_router(state.clone()))
     .nest("/groups", groups_router(state.clone()))
     .layer(cors)
+    .layer(TraceLayer::new_for_http())
     .with_state(state)
 }

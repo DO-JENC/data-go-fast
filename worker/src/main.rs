@@ -14,19 +14,22 @@ use common::infra::s3::config::{S3Instance, init_s3_instance};
 use common::queue::models::{Job, Op};
 use common::queue::storage::get_queue_storage;
 use sqlx::{Pool, Postgres, Row, query};
+use common::logs::init_logging;
+use tracing::{error, info, instrument};
 
 use crate::execute::Operation;
 use crate::ingest::ingest_json;
 use crate::utils::{download_from_s3, parse_s3_id, upload_to_s3};
 
-pub async fn job_processing(job: Job) {
-  println!("Processing job: {:?}", job.job_id);
+#[instrument(skip_all, fields(job_id = %job.job_id))]
+async fn job_processing(job: Job) {
+  info!("Processing job");
 
   let s3 = init_s3_instance();
   let pool = match create_pool_from_env().await {
     Ok(p) => p,
     Err(e) => {
-      eprintln!("Failed to create database pool: {}", e);
+      error!("Failed to create database pool: {}", e);
       return;
     }
   };
@@ -57,7 +60,7 @@ async fn csv_processing(job: Job, s3: S3Instance, pool: Pool<Postgres>) {
   let csv_bytes = match download_from_s3(&s3, &job.datasource_id).await {
     Ok(bytes) => bytes,
     Err(e) => {
-      eprintln!("Failed to download from S3: {}", e);
+      error!("Failed to download from S3: {}", e);
       let _ = update_job_status(&pool, &job.job_id, "error").await;
       return;
     }
@@ -66,7 +69,7 @@ async fn csv_processing(job: Job, s3: S3Instance, pool: Pool<Postgres>) {
   let (group_uuid, _, _) = match parse_s3_id(&job.datasource_id) {
     Ok(t) => t,
     Err(e) => {
-      eprintln!("Failed to parse S3 ID: {}", e);
+      error!("Failed to parse S3 ID: {}", e);
       let _ = update_job_status(&pool, &job.job_id, "error").await;
       return;
     }
@@ -80,7 +83,7 @@ async fn csv_processing(job: Job, s3: S3Instance, pool: Pool<Postgres>) {
     match op.execute_on_bytes(&current_bytes).await {
       Ok(filtered) => current_bytes = filtered,
       Err(e) => {
-        eprintln!("Operation failed for job {}: {}", job.job_id, e);
+        error!("Operation failed for job {}: {}", job.job_id, e);
         let _ = update_job_status(&pool, &job.job_id, "error").await;
         return;
       }
@@ -96,7 +99,7 @@ async fn csv_processing(job: Job, s3: S3Instance, pool: Pool<Postgres>) {
   let new_s3_id = match upload_to_s3(&s3, &current_bytes, &group_uuid, ext).await {
     Ok(id) => id,
     Err(e) => {
-      eprintln!("Failed to upload to S3: {}", e);
+      error!("Failed to upload to S3: {}", e);
       let _ = update_job_status(&pool, &job.job_id, "error").await;
       return;
     }
@@ -122,13 +125,13 @@ async fn csv_processing(job: Job, s3: S3Instance, pool: Pool<Postgres>) {
   .await
   {
     Ok(new_id) => {
-      println!("Datasource created with ID: {}", new_id);
+      info!("Datasource created with ID: {}", new_id);
       if let Err(e) = update_job_result(&pool, &job.job_id, &new_id).await {
-        eprintln!("Failed to update job result: {}", e);
+        error!("Failed to update job result: {}", e);
       }
     }
     Err(e) => {
-      eprintln!("Failed to create datasource: {}", e);
+      error!("Failed to create datasource: {}", e);
       let _ = update_job_status(&pool, &job.job_id, "error").await;
     }
   }
@@ -175,6 +178,9 @@ async fn json_processing(job: Job, s3: S3Instance, pool: Pool<Postgres>) {
 
 #[tokio::main]
 async fn main() {
+  init_logging();
+  info!("Starting worker...");
+
   let storage: RedisStorage<Job> = get_queue_storage().await;
 
   let monitor = Monitor::new().register(
