@@ -172,6 +172,24 @@ pub async fn refresh_token(
   ))
 }
 
+fn validate_password(password: &str) -> Result<&str, AppError> {
+  if password.len() < 8 {
+    return Err(AppError::Unprocessable(
+      "Password must be at least 8 characters long",
+    ));
+  }
+
+  let has_special = password.chars().any(|c| !c.is_alphanumeric());
+
+  if !has_special {
+    return Err(AppError::Unprocessable(
+      "Password must contain at least one special character",
+    ));
+  }
+
+  Ok(password)
+}
+
 pub async fn signup(
   State(state): State<AppState>,
   jar: CookieJar,
@@ -180,8 +198,9 @@ pub async fn signup(
   let salt = SaltString::generate(&mut Osrng);
   let argon2 = Argon2::default();
 
+  let password = validate_password(&payload.password)?.as_bytes();
   let password_hash = argon2
-    .hash_password(payload.password.as_bytes(), &salt)
+    .hash_password(password, &salt)
     .map_err(|_| AppError::Internal("Error hashing password"))?
     .to_string();
 

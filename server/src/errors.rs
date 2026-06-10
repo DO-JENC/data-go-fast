@@ -10,6 +10,7 @@ pub enum AppError {
   Unauthorized(&'static str),
   Conflict(&'static str),
   Internal(&'static str),
+  Unprocessable(&'static str),
 }
 
 impl IntoResponse for AppError {
@@ -18,6 +19,7 @@ impl IntoResponse for AppError {
       AppError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
       AppError::Conflict(msg) => (StatusCode::CONFLICT, msg),
       AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+      AppError::Unprocessable(msg) => (StatusCode::UNPROCESSABLE_ENTITY, msg),
     };
     (status, Json(json!({ "error": message }))).into_response()
   }
