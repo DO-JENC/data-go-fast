@@ -1,5 +1,8 @@
 # Apps
 
+You can follow this tutorial step by step or run the `set-up.sh`script to generate the ressources automatically.
+Please note that you will still need to initialise your tables in the database and create an S3 bucket.
+
 ## Unified Backend (Server + Worker)
 
 The backend is deployed as a single Clever Cloud **Rust** application. This application contains two binaries: the `server` (web process) and the `worker` (background job processor).
@@ -35,6 +38,11 @@ clever service link-addon data-go-fast-db --alias backend
 clever env set DATABASE_URL 'postgres://${POSTGRESQL_ADDON_USER}:${POSTGRESQL_ADDON_PASSWORD}@${POSTGRESQL_ADDON_HOST}:${POSTGRESQL_ADDON_PORT}/${POSTGRESQL_ADDON_DB}' --alias backend
 ```
 
+Make sure to initialise your tables in the database :
+```bash
+cat init.sql | psql -h ${POSTGRES_ADDON_HOST} -p ${POSTGRES_ADDON_PORT} -U ${POSTGRES_ADDON_USER} -d ${POSTGRES_ADDON_DB}
+```
+
 #### Redis (Queue)
 ```bash
 clever service link-addon data-go-fast-redis --alias backend
@@ -50,6 +58,10 @@ clever env set AWS_SECRET_ACCESS_KEY '${CELLAR_ADDON_KEY_SECRET}' --alias backen
 clever env set AWS_DEFAULT_REGION "garage" --alias backend
 clever env set BUCKET_NAME "data-go-fast" --alias backend
 ```
+
+Make sure to create a bucket called "data-go-fast" in your cellar addon.
+
+![alt text](cellar-bucket-creation.png)
 
 #### Security
 ```bash
