@@ -1,10 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import type { Job, IngestOp, FilterOp } from "@/types/job"
-import {
-  FileCog,
-  ArrowRight,
-} from "lucide-react"
+import type { FilterOp, IngestOp, Job } from "@/types/job"
+import { ArrowRight, FileCog } from "lucide-react"
 
 function renderPipelineOp(op: IngestOp | FilterOp, i: number) {
   if (op.op === "ingest") {
@@ -35,14 +32,8 @@ function renderPipelineOp(op: IngestOp | FilterOp, i: number) {
   return null
 }
 
-export default function JobInfo({
-  job
-} : {
-  job : Job
-}) {
-
-
-return (
+export default function JobInfo({ job }: { job: Job }) {
+  return (
     <Card
       size="sm"
       className="h-full bg-white shadow-sm transition-shadow hover:shadow-md"
@@ -87,7 +78,4 @@ return (
       </CardContent>
     </Card>
   )
-
-
-
 }
