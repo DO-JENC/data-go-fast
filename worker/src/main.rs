@@ -2,21 +2,25 @@ mod aggregate;
 mod execute;
 mod filter;
 mod group_by;
+mod ingest;
 mod utils;
 
 use apalis::prelude::*;
 use apalis_redis::RedisStorage;
 use common::infra::database::config::create_pool_from_env;
-use common::infra::database::datasource::create_datasource_from_s3;
+use common::infra::database::datasource::{DatasourceType, create_datasource_from_s3};
 use common::infra::database::job::{update_job_result, update_job_status};
-use common::infra::s3::config::init_s3_instance;
+use common::infra::s3::config::{S3Instance, init_s3_instance};
 use common::queue::models::{Job, Op};
 use common::queue::storage::get_queue_storage;
+use sqlx::{Pool, Postgres, Row, query};
+use uuid::Uuid;
 
 use crate::execute::Operation;
+use crate::ingest::ingest_json;
 use crate::utils::{download_from_s3, parse_s3_id, upload_to_s3};
 
-async fn job_treatment(job: Job) {
+pub async fn job_processing(job: Job) {
   println!("Processing job: {:?}", job.job_id);
 
   let s3 = init_s3_instance();
@@ -28,8 +32,29 @@ async fn job_treatment(job: Job) {
     }
   };
 
+  let request = query("SELECT id, file_type FROM datasources WHERE s3_id = $1")
+    .bind(&job.datasource_id)
+    .fetch_one(&pool)
+    .await;
+
+  let (_datasource_id, file_type): (Uuid, DatasourceType) = match request {
+    Ok(response) => (response.get("id"), response.get("file_type")),
+    Err(e) => {
+      eprintln!("Failed to get datasource file type: {}", e);
+      let _ = update_job_status(&pool, &job.job_id, "error").await;
+      return;
+    }
+  };
+
   let _ = update_job_status(&pool, &job.job_id, "running").await;
 
+  match file_type {
+    DatasourceType::Csv => csv_processing(job, s3, pool).await,
+    DatasourceType::Json => json_processing(job, s3, pool).await,
+  }
+}
+
+async fn csv_processing(job: Job, s3: S3Instance, pool: Pool<Postgres>) {
   let csv_bytes = match download_from_s3(&s3, &job.datasource_id).await {
     Ok(bytes) => bytes,
     Err(e) => {
@@ -134,6 +159,21 @@ async fn shutdown_signal() {
   }
 }
 
+async fn json_processing(job: Job, s3: S3Instance, pool: Pool<Postgres>) {
+  println!("JSON Processing");
+  for op in &job.pipeline {
+    match op {
+      Op::Ingest { .. } => {
+        ingest_json(&pool, &s3, &job).await;
+        return;
+      }
+      Op::Filter { .. } => println!("JSON Filtering not yet implemented"),
+      Op::Aggregate { .. } => println!("JSON Aggregating not yet implemented"),
+      Op::GroupBy { .. } => println!("JSON GroupBying not yet implemented"),
+    }
+  }
+}
+
 #[tokio::main]
 async fn main() {
   let storage: RedisStorage<Job> = get_queue_storage().await;
@@ -142,7 +182,7 @@ async fn main() {
     WorkerBuilder::new("worker")
       .concurrency(2)
       .backend(storage)
-      .build_fn(job_treatment),
+      .build_fn(job_processing),
   );
 
   tokio::select! {
