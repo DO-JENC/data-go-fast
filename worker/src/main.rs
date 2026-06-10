@@ -32,7 +32,7 @@ pub async fn job_processing(job: Job) {
     }
   };
 
-  let request = query("SELECT id, file_type FROM datasources WHERE s3_id = $1")
+  let request = query("SELECT file_type FROM datasources WHERE s3_id = $1")
     .bind(&job.datasource_id)
     .fetch_one(&pool)
     .await;
