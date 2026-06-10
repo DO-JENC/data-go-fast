@@ -22,7 +22,7 @@ use crate::ingest::ingest_json;
 use crate::utils::{download_from_s3, parse_s3_id, upload_to_s3};
 
 #[instrument(skip_all, fields(job_id = %job.job_id))]
-async fn job_processing(job: Job) {
+pub async fn job_processing(job: Job) {
   info!("Processing job");
 
   let s3 = init_s3_instance();
