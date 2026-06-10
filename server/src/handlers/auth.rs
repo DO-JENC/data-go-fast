@@ -17,6 +17,7 @@ use rand::{Rng, rng};
 use redis::AsyncCommands;
 use std::env;
 use time::Duration as TimeDuration;
+use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
 use crate::{
@@ -29,6 +30,7 @@ use crate::{
   models::auth::{AuthBody, AuthPayload, Claims},
 };
 
+#[instrument(skip_all)]
 pub async fn logout(
   State(state): State<AppState>,
   jar: CookieJar,
@@ -37,7 +39,10 @@ pub async fn logout(
   let refresh_token = jar
     .get("refresh_token")
     .map(|c| c.value().to_string())
-    .ok_or(AppError::Unauthorized("No refresh token found"))?;
+    .ok_or_else(|| {
+      warn!("Logout attempted without refresh token cookie");
+      AppError::Unauthorized("No refresh token found")
+    })?;
 
   let mut redis_conn = state.redis_connection.clone();
 
@@ -52,7 +57,10 @@ pub async fn logout(
       &DecodingKey::from_secret(state.jwt_secret.as_ref()),
       &validation,
     )
-    .map_err(|_| AppError::Unauthorized("Invalid access token"))?;
+    .map_err(|e| {
+      error!("Failed to decode access token for logout: {:?}", e);
+      AppError::Unauthorized("Invalid access token")
+    })?;
 
     let now = Utc::now().timestamp() as usize;
     let remaining = token_data.claims.exp.saturating_sub(now);
@@ -62,28 +70,36 @@ pub async fn logout(
       let _: () = redis_conn
         .set_ex(&blocklist_key, "1", remaining as u64)
         .await
-        .map_err(|_| AppError::Internal("Redis error"))?;
+        .map_err(|e| {
+          error!("Failed to blocklist token in Redis: {:?}", e);
+          AppError::Internal("Redis error")
+        })?;
+      info!(user_id = %token_data.claims.sub, "Access token blocklisted");
     }
-    // If remaining == 0 the token is already expired; no need to store it.
   }
 
   let redis_key = format!("refresh_token:{}", refresh_token);
 
   // Remove from Redis
-  let _: () = redis_conn
-    .del(&redis_key)
-    .await
-    .map_err(|_| AppError::Internal("Redis error"))?;
+  let _: () = redis_conn.del(&redis_key).await.map_err(|e| {
+    error!("Failed to remove refresh token from Redis: {:?}", e);
+    AppError::Internal("Redis error")
+  })?;
 
   // Remove from Postgres
   revoke_refresh_token(&state.pool, &refresh_token)
     .await
-    .map_err(|_| AppError::Internal("Database error"))?;
+    .map_err(|e| {
+      error!("Failed to revoke refresh token from database: {:?}", e);
+      AppError::Internal("Database error")
+    })?;
 
+  info!("User logged out successfully");
   // Clear cookie
   Ok((jar.remove(Cookie::from("refresh_token")), StatusCode::OK))
 }
 
+#[instrument(skip_all, fields(user_id = %user_id))]
 async fn generate_refresh_token(state: AppState, user_id: Uuid) -> Result<String, AppError> {
   // Generate a new refresh token,
   let mut bytes = [0u8; 32];
@@ -93,7 +109,10 @@ async fn generate_refresh_token(state: AppState, user_id: Uuid) -> Result<String
   // Save to Postgres
   let expires_at = save_refresh_token(&state.pool, user_id, &refresh_token, 7)
     .await
-    .map_err(|_| AppError::Internal("Database error"))?;
+    .map_err(|e| {
+      error!("Failed to save refresh token to database: {:?}", e);
+      AppError::Internal("Database error")
+    })?;
 
   // Save to Redis (using TTL from days)
   let mut redis_conn = state.redis_connection.clone();
@@ -103,11 +122,15 @@ async fn generate_refresh_token(state: AppState, user_id: Uuid) -> Result<String
   let _: () = redis_conn
     .set_ex(&redis_key, user_id.to_string(), ttl)
     .await
-    .map_err(|_| AppError::Internal("Redis error"))?;
+    .map_err(|e| {
+      error!("Failed to save refresh token to Redis: {:?}", e);
+      AppError::Internal("Redis error")
+    })?;
 
   Ok(refresh_token)
 }
 
+#[instrument(skip_all)]
 pub async fn refresh_token(
   State(state): State<AppState>,
   jar: CookieJar,
@@ -115,24 +138,35 @@ pub async fn refresh_token(
   let refresh_token: String = jar
     .get("refresh_token")
     .map(|c| c.value().to_string())
-    .ok_or(AppError::Unauthorized("No refresh token found"))?;
+    .ok_or_else(|| {
+      warn!("Token refresh attempted without cookie");
+      AppError::Unauthorized("No refresh token found")
+    })?;
 
   let mut redis_conn = state.redis_connection.clone();
   let redis_key = format!("refresh_token:{}", refresh_token);
 
   // Try Redis first
   let user_id: Uuid = match redis_conn.get::<_, Option<String>>(&redis_key).await {
-    Ok(Some(id_str)) => {
-      Uuid::parse_str(&id_str).map_err(|_| AppError::Internal("Invalid ID format in cache"))?
-    }
+    Ok(Some(id_str)) => Uuid::parse_str(&id_str).map_err(|e| {
+      error!("Invalid ID format in Redis: {:?}", e);
+      AppError::Internal("Invalid ID format in cache")
+    })?,
     _ => {
       // Fallback to Postgres
       let token_row = get_refresh_token(&state.pool, &refresh_token)
         .await
-        .map_err(|_| AppError::Internal("Database error"))?
-        .ok_or(AppError::Unauthorized("Invalid refresh token"))?;
+        .map_err(|e| {
+          error!("Failed to fetch refresh token from database: {:?}", e);
+          AppError::Internal("Database error")
+        })?
+        .ok_or_else(|| {
+          warn!("Invalid refresh token provided");
+          AppError::Unauthorized("Invalid refresh token")
+        })?;
 
       if token_row.expires_at < Utc::now().naive_utc() {
+        warn!(user_id = %token_row.user_id, "Refresh token expired");
         return Err(AppError::Unauthorized("Refresh token expired"));
       }
 
@@ -149,7 +183,10 @@ pub async fn refresh_token(
           remaining_ttl as u64,
         )
         .await
-        .map_err(|_| AppError::Internal("Redis error"))?;
+        .map_err(|e| {
+          error!("Failed to sync refresh token to Redis: {:?}", e);
+          AppError::Internal("Redis error")
+        })?;
 
       token_row.user_id
     }
@@ -157,11 +194,19 @@ pub async fn refresh_token(
 
   let user = find_user_by_id(&state.pool, user_id)
     .await
-    .map_err(|_| AppError::Internal("Database error"))?
-    .ok_or(AppError::Unauthorized("User not found"))?;
+    .map_err(|e| {
+      error!("Failed to fetch user {} from database: {:?}", user_id, e);
+      AppError::Internal("Database error")
+    })?
+    .ok_or_else(|| {
+      error!("User {} not found for valid refresh token", user_id);
+      AppError::Unauthorized("User not found")
+    })?;
 
   let access_token = generate_jwt(user.id, user.email)?;
   let new_cookie = build_cookie(refresh_token);
+
+  info!(user_id = %user.id, "Token refreshed successfully");
 
   Ok((
     jar.add(new_cookie),
@@ -186,36 +231,46 @@ fn validate_password(password: &str) -> Result<&str, AppError> {
       "Password must contain at least one special character",
     ));
   }
-
   Ok(password)
 }
 
+#[instrument(skip_all, fields(email = %payload.email))]
 pub async fn signup(
   State(state): State<AppState>,
   jar: CookieJar,
   Json(payload): Json<AuthPayload>,
 ) -> Result<impl IntoResponse, AppError> {
+  info!("Processing signup request");
   let salt = SaltString::generate(&mut Osrng);
   let argon2 = Argon2::default();
 
-  let password = validate_password(&payload.password)?.as_bytes();
+  let _ = validate_password(&payload.password)?.as_bytes();
   let password_hash = argon2
-    .hash_password(password, &salt)
-    .map_err(|_| AppError::Internal("Error hashing password"))?
+    .hash_password(payload.password.as_bytes(), &salt)
+    .map_err(|e| {
+      error!("Password hashing failed: {:?}", e);
+      AppError::Internal("Error hashing password")
+    })?
     .to_string();
 
   let user = create_user(&state.pool, &payload.email, &password_hash)
     .await
     .map_err(|e| {
-      e.as_database_error()
-        .filter(|e| e.is_unique_violation())
-        .map(|_| AppError::Conflict("User already exists"))
-        .unwrap_or(AppError::Internal("Internal server error"))
+      if let Some(db_err) = e.as_database_error() {
+        if db_err.is_unique_violation() {
+          warn!("Signup attempted with existing email: {}", payload.email);
+          return AppError::Conflict("User already exists");
+        }
+      }
+      error!("User creation failed for {}: {:?}", payload.email, e);
+      AppError::Internal("Internal server error")
     })?;
 
   let access_token = generate_jwt(user.id, user.email.clone())?;
   let refresh_token: String = generate_refresh_token(state, user.id).await?;
   let cookie = build_cookie(refresh_token);
+
+  info!(user_id = %user.id, "User signed up successfully");
 
   Ok((
     jar.add(cookie),
@@ -229,30 +284,43 @@ pub async fn signup(
   ))
 }
 
+#[instrument(skip_all, fields(email = %payload.email))]
 pub async fn login(
   State(state): State<AppState>,
   jar: CookieJar,
   Json(payload): Json<AuthPayload>,
 ) -> Result<impl IntoResponse, AppError> {
+  info!("Processing login request");
   let user = find_user_by_email(&state.pool, &payload.email)
     .await
-    .map_err(|_| AppError::Internal("Internal server error"))?
-    .ok_or(AppError::Unauthorized("Invalid credentials"))?;
+    .map_err(|e| {
+      error!("Failed to fetch user by email: {:?}", e);
+      AppError::Internal("Internal server error")
+    })?
+    .ok_or_else(|| {
+      warn!("Login failed: user not found");
+      AppError::Unauthorized("Invalid credentials")
+    })?;
 
-  let parsed_hash = PasswordHash::new(&user.hash_password)
-    .map_err(|_| AppError::Internal("Invalid password hash format in database"))?;
+  let parsed_hash = PasswordHash::new(&user.hash_password).map_err(|e| {
+    error!("Invalid password hash format for user {}: {:?}", user.id, e);
+    AppError::Internal("Invalid password hash format in database")
+  })?;
 
   let is_valid = Argon2::default()
     .verify_password(payload.password.as_bytes(), &parsed_hash)
     .is_ok();
 
   if !is_valid {
+    warn!(user_id = %user.id, "Login failed: invalid password");
     return Err(AppError::Unauthorized("Invalid credentials"));
   }
 
   let access_token = generate_jwt(user.id, user.email.clone())?;
   let refresh_token: String = generate_refresh_token(state, user.id).await?;
   let cookie = build_cookie(refresh_token);
+
+  info!(user_id = %user.id, "User logged in successfully");
 
   Ok((
     jar.add(cookie),
@@ -277,7 +345,10 @@ fn build_cookie(refresh_token: String) -> Cookie<'static> {
 }
 
 fn generate_jwt(user_id: Uuid, email: String) -> Result<String, AppError> {
-  let secret = env::var("JWT_SECRET").map_err(|_| AppError::Internal("JWT_SECRET not set"))?;
+  let secret = env::var("JWT_SECRET").map_err(|e| {
+    error!("JWT_SECRET environment variable missing: {:?}", e);
+    AppError::Internal("JWT_SECRET not set")
+  })?;
 
   let exp = Utc::now()
     .checked_add_signed(ChronoDuration::hours(24))
@@ -295,5 +366,8 @@ fn generate_jwt(user_id: Uuid, email: String) -> Result<String, AppError> {
     &claims,
     &EncodingKey::from_secret(secret.as_ref()),
   )
-  .map_err(|_| AppError::Internal("Error generating token"))
+  .map_err(|e| {
+    error!("JWT encoding failed for user {}: {:?}", user_id, e);
+    AppError::Internal("Error generating token")
+  })
 }
