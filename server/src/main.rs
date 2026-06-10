@@ -43,7 +43,10 @@ async fn main() {
     jwt_secret,
   };
 
-  let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+  let port = env::var("SERVER_PORT").unwrap_or_else(|_| "3000".to_string());
+  let addr = format!("0.0.0.0:{}", port);
+
+  let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
   let router = app_router(state);
   axum::serve(listener, router)
     .with_graceful_shutdown(shutdown_signal())
