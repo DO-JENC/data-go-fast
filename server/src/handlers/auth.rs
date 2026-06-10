@@ -49,7 +49,7 @@ pub async fn logout(
 
     let token_data = decode::<Claims>(
       auth.token(),
-      &DecodingKey::from_secret(&state.jwt_secret.as_ref()),
+      &DecodingKey::from_secret(state.jwt_secret.as_ref()),
       &validation,
     )
     .map_err(|_| AppError::Unauthorized("Invalid access token"))?;

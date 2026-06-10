@@ -12,8 +12,8 @@ use crate::{
 
 use axum::{
   Router,
-  http::{HeaderValue, Method, StatusCode},
   extract::DefaultBodyLimit,
+  http::{HeaderValue, Method, StatusCode},
   middleware,
   routing::{delete, get, post},
 };
