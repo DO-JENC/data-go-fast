@@ -189,7 +189,7 @@ export function AppSidebar() {
                         <span className="w-1.5 h-1.5 rounded-full bg-primary/60 flex-shrink-0" />
                         <span className="flex-1 truncate">{group.name}</span>
                         {currentGroup?.id === group.id && (
-                          <Check className="w-3.5 h-3.5 flex-shrink-0 text-primary" />
+                          <Check className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-purple)]" />
                         )}
                       </button>
                     </SidebarMenuItem>
@@ -227,7 +227,7 @@ export function AppSidebar() {
 
         <SidebarFooter>
           <div className="flex items-center gap-2.5 px-4 py-3">
-            <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center text-[11px] font-medium text-primary flex-shrink-0">
+            <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center text-[11px] font-medium text-[var(--color-purple)] flex-shrink-0">
               {userInitials}
             </div>
             <div className="min-w-0">
@@ -261,7 +261,7 @@ export function AppSidebar() {
                 className={cn(
                   "text-sm px-4 py-1.5 rounded-full border transition-colors",
                   mode === m
-                    ? "bg-primary/10 border-primary/30 text-primary font-medium"
+                    ? "bg-primary/10 border-primary/30 text-[var(--color-purple)] font-medium"
                     : "border-border text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -295,7 +295,7 @@ export function AppSidebar() {
                       className={cn(
                         "w-full text-left px-3 py-2 text-sm transition-colors",
                         selectedResult?.id === g.id
-                          ? "bg-primary/10 text-primary font-medium"
+                          ? "bg-primary/10 text-[var(--color-purple)] font-medium"
                           : "hover:bg-accent text-foreground",
                       )}
                     >
@@ -311,7 +311,7 @@ export function AppSidebar() {
               )}
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button
-                className="w-full rounded-md mt-3"
+                className="w-full rounded-md mt-3 bg-[var(--color-purple)] text-white"
                 disabled={!selectedResult || submitting}
                 onClick={handleJoin}
               >
@@ -332,7 +332,7 @@ export function AppSidebar() {
               />
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button
-                className="w-full rounded-md mt-3"
+                className="w-full rounded-md mt-3 bg-[var(--color-purple)] text-white"
                 disabled={!newGroupName.trim() || submitting}
                 onClick={handleCreate}
               >
