@@ -256,11 +256,11 @@ pub async fn signup(
   let user = create_user(&state.pool, &payload.email, &password_hash)
     .await
     .map_err(|e| {
-      if let Some(db_err) = e.as_database_error() {
-        if db_err.is_unique_violation() {
-          warn!("Signup attempted with existing email: {}", payload.email);
-          return AppError::Conflict("User already exists");
-        }
+      if let Some(db_err) = e.as_database_error()
+        && db_err.is_unique_violation()
+      {
+        warn!("Signup attempted with existing email: {}", payload.email);
+        return AppError::Conflict("User already exists");
       }
       error!("User creation failed for {}: {:?}", payload.email, e);
       AppError::Internal("Internal server error")
