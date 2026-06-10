@@ -50,13 +50,13 @@ async fn job_processing(
     }
   };
 
-  let request = query("SELECT id, file_type FROM datasources WHERE s3_id = $1")
+  let request = query("SELECT file_type FROM datasources WHERE s3_id = $1")
     .bind(&job.datasource_id)
     .fetch_one(pool)
     .await;
 
-  let (datasource_id, file_type): (Uuid, DatasourceType) = match request {
-    Ok(response) => (response.get("id"), response.get("file_type")),
+  let (file_type): DatasourceType = match request {
+    Ok(response) => response.get("file_type"),
     Err(e) => {
       eprintln!("Failed to get datasource file type: {}", e);
       let _ = update_job_status(&pool, &job.job_id, "error").await;
