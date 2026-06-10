@@ -4,18 +4,36 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useDatasources } from "@/hooks/use-datasources"
 import { useJobs } from "@/hooks/use-jobs"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { Datasource } from "@/types/datasource"
 import type { Job } from "@/types/job"
 
 export default function TreePanel({
   onSelect,
+  refreshKey,
+  revealDatasourceId,
+  onRevealHandled,
 }: {
   onSelect: (item: Datasource | Job | string, type: "datasource" | "job" | "form") => void
+  refreshKey?: number
+  revealDatasourceId?: string | null
+  onRevealHandled?: () => void
 }) {
-  const { datasources, loading: dsLoading, error: dsError } = useDatasources()
-  const { jobs, loading: jobsLoading, error: jobsError } = useJobs()
+  const { datasources, loading: dsLoading, error: dsError, refreshDatasources } = useDatasources()
+  const { jobs, loading: jobsLoading, error: jobsError, refreshJobs } = useJobs()
   const [openFolders, setOpenFolders] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    refreshDatasources()
+    refreshJobs()
+  }, [refreshKey])
+
+  useEffect(() => {
+    if (revealDatasourceId) {
+      setOpenFolders((prev) => new Set(prev).add(revealDatasourceId!))
+      onRevealHandled?.()
+    }
+  }, [revealDatasourceId])
 
   const loading = dsLoading || jobsLoading
   const error = dsError || jobsError
@@ -49,11 +67,11 @@ export default function TreePanel({
       </CardHeader>
       <CardContent className="space-y-1">
         {loading && (
-          <p className="text-sm text-muted-foreground">Chargement...</p>
+          <p className="text-sm text-muted-foreground">Loading...</p>
         )}
         {error && (
           <p className="text-sm text-red-500">
-            Impossible de charger : {error}
+            Unable to load : {error}
           </p>
         )}
         {!loading &&
@@ -116,7 +134,7 @@ export default function TreePanel({
           })}
         {!loading && !error && datasources.length === 0 && (
           <p className="text-sm text-muted-foreground">
-            Aucune datasource trouvée.
+            No datasources found!
           </p>
         )}
         <Button
@@ -125,7 +143,6 @@ export default function TreePanel({
           variant="outline"
           onClick={() => {
             onSelect("form", "form")
-            
           }}
         >
           <Plus />

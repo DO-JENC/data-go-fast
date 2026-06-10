@@ -1,7 +1,7 @@
 import type { Datasource } from "@/types/datasource"
+import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -10,6 +10,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   FileJson,
@@ -28,22 +29,21 @@ function formatDate(iso: string | null): string {
   })
 }
 
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  if (bytes < 1024 * 1024 * 1024)
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
+function formatSizeMB(mb: number): string {
+  if (mb < 1) return `${(mb * 1024).toFixed(0)} KiB`
+  if (mb < 1024) return `${mb.toFixed(1)} MiB`
+  return `${(mb / 1024).toFixed(1)} GiB`
 }
 
 
 export default function DatasourceInfo({
   item,
-  onDelete
-
+  onDelete,
+  onRefresh,
 } : {
   item: Datasource
   onDelete?: (id: string) => Promise<boolean>
+  onRefresh?: () => void
 }) {
 
   const ds = item as Datasource
@@ -68,7 +68,7 @@ export default function DatasourceInfo({
               <span className="truncate">{ds.name}</span>
             </span>
             <span className="flex items-center gap-3 text-sm font-normal text-muted-foreground">
-              <span>{formatSize(ds.size)}</span>
+              <span>{formatSizeMB(ds.size)}</span>
               {ds.file_type && (
                 <span className="rounded border border-[#8828ad] px-1.5 py-0.5 text-xs uppercase text-[#8828ad]">
                   {ds.file_type}
@@ -95,19 +95,24 @@ export default function DatasourceInfo({
                       <AlertDialogCancel onClick={(e) => e.stopPropagation()}>
                         Cancel
                       </AlertDialogCancel>
-                      <AlertDialogAction
-                        className="cursor-pointer bg-orange-500 text-white hover:bg-purple-600"
-                        onClick={async (e) => {
-                          e.stopPropagation()
-                          try {
-                            await onDelete(ds.id)
-                          } catch {
-                            // error handled by the hook
-                          }
-                        }}
-                      >
-                        Delete
-                      </AlertDialogAction>
+                      <AlertDialogPrimitive.Close
+                        render={
+                          <Button
+                            className="cursor-pointer bg-orange-500 text-white hover:bg-purple-600"
+                            onClick={async (e) => {
+                              e.stopPropagation()
+                              try {
+                                await onDelete(ds.id)
+                                onRefresh?.()
+                              } catch {
+                                // error handled by the hook
+                              }
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        }
+                      />
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
@@ -129,4 +134,3 @@ export default function DatasourceInfo({
     )
 
 }
-

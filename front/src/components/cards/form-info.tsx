@@ -5,7 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-export default function FormInfo() {
+export default function FormInfo({
+  onRefresh,
+  onJobCreated,
+}: {
+  onRefresh?: () => void
+  onJobCreated?: (datasourceId: string) => void
+}) {
   const [toggleCreate, setCreate] = useState<string>("datasource")
 
   return (
@@ -20,7 +26,7 @@ export default function FormInfo() {
                 className={cn(
                   "rounded-t-sm! w-50/100 shadow-sm transition-all active:scale-[0.98] disabled:opacity-100",
                   toggleCreate === "datasource"
-                    ? "bg-[#8828ad] text-white hover:bg-[#8828ad]/90"
+                    ? "bg-[#8828ad] text-white hover:bg-[#8828ad]/90 border-1 border-[#8e25b6]! "
                     : "bg-gray-100 text-gray-500 hover:bg-gray-200",
                 )}
                 onClick={() => setCreate("datasource")}
@@ -32,8 +38,8 @@ export default function FormInfo() {
                 className={cn(
                   "rounded-t-sm! w-50/100 shadow-sm transition-all active:scale-[0.98] disabled:opacity-100",
                   toggleCreate === "job"
-                    ? "bg-[#8828ad] text-white hover:bg-[#8828ad]/90"
-                    : "bg-gray-100 text-gray-500 hover:bg-gray-200",
+                    ? "bg-[#8828ad] text-white hover:bg-[#8828ad]/90 border-1 border-[#8e25b6]!"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200 ",
                 )}
                 onClick={() => setCreate("job")}
               >
@@ -41,11 +47,11 @@ export default function FormInfo() {
               </Button>
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm bg-gray-300 h-full border-t-gray-300 mx-4 rounded-b-sm!">
+        <CardContent className="flex items-baseline justify-center gap-x-4 gap-y-2 text-sm bg-[#f8eefc] h-full border-1 border-[#8e25b6]! mx-4 rounded-b-sm!">
           {
             toggleCreate === "datasource"
-              ? <DatasourceForm/>
-              : <JobForm/>
+              ? <DatasourceForm onRefresh={onRefresh}/>
+              : <JobForm onJobCreated={onJobCreated}/>
           }
         </CardContent>
       </Card>
