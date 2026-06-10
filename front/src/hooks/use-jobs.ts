@@ -6,16 +6,21 @@ export function useJobs() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetch("/api/jobs")
-      .then((res) => {
-        if (!res.ok) throw new Error(`Erreur ${res.status}`)
-        return res.json() as Promise<Job[]>
-      })
-      .then(setJobs)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
-  }, [])
+  async function fetchJobs() {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch("/api/jobs")
+      if (!res.ok) throw new Error(`Erreur ${res.status}`)
+      setJobs(await res.json())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  return { jobs, loading, error }
+  useEffect(() => { fetchJobs() }, [])
+
+  return { jobs, loading, error, refreshJobs: fetchJobs }
 }

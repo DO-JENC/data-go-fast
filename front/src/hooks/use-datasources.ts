@@ -11,26 +11,21 @@ export function useDatasources(initialPage = 1, limit = 10) {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(initialPage)
 
-  useEffect(() => {
-    if (!currentGroup?.id) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLoading(false)
-      return
-    }
-
-    const offset = (page - 1) * limit
+  async function fetchDatasources() {
     setLoading(true)
-    api
-      .get<{ items: Datasource[]; total: number }>(
-        `/datasources?group_id=${currentGroup.id}&limit=${limit}&offset=${offset}`,
-      )
-      .then((data) => {
-        setDatasources(data.items)
-        setTotal(data.total)
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
-  }, [currentGroup?.id, page, limit])
+    setError(null)
+    try {
+      const res = await fetch("/api/datasources") // `/datasources?group_id=${currentGroup.id}&limit=${limit}&offset=${offset}`
+      if (!res.ok) throw new Error(`Erreur ${res.status}`)
+      setDatasources(await res.json())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { fetchDatasources() }, [])
 
   async function removeDatasource(id: string): Promise<boolean> {
     try {
@@ -46,14 +41,5 @@ export function useDatasources(initialPage = 1, limit = 10) {
     }
   }
 
-  return {
-    datasources,
-    loading,
-    error,
-    removeDatasource,
-    total,
-    page,
-    setPage,
-    limit,
-  }
+  return { datasources, loading, error, removeDatasource, refreshDatasources: fetchDatasources }
 }

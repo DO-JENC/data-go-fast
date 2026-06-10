@@ -10,10 +10,14 @@ export default function DatasourceCard({
   item,
   type,
   onDelete,
+  onRefresh,
+  onJobCreated,
 }: {
   item: Datasource | Job | string | null
   type: "datasource" | "job" | "form" | null
   onDelete?: (id: string) => Promise<boolean>
+  onRefresh?: () => void
+  onJobCreated?: (datasourceId: string) => void
 }) {
   if (!item || !type) {
     return (
@@ -32,20 +36,19 @@ export default function DatasourceCard({
     return (
       <DatasourceInfo
        item={item as Datasource}
-       onDelete={onDelete}/>
+       onDelete={onDelete}
+       onRefresh={onRefresh}/>
     )
   }
 
-  if  (type === "form") {
+  if (type === "form") {
     return (
-      <FormInfo/>
+      <FormInfo onRefresh={onRefresh} onJobCreated={onJobCreated}/>
     )
   }
-  
-  // else case (for the moment only job but TODO : change when form added)
+
   const job = item as Job
   return(
-    <JobInfo
-     job={job}/>
+    <JobInfo job={job}/>
   )
 }
