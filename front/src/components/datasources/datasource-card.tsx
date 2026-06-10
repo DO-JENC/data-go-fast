@@ -3,8 +3,8 @@ import type { Datasource } from "@/types/datasource"
 import type { Job } from "@/types/job"
 
 import DatasourceInfo from "../cards/datasource-info"
-import JobInfo from "../cards/job-info"
 import FormInfo from "../cards/form-info"
+import JobInfo from "../cards/job-info"
 
 export default function DatasourceCard({
   item,
@@ -35,20 +35,17 @@ export default function DatasourceCard({
   if (type === "datasource") {
     return (
       <DatasourceInfo
-       item={item as Datasource}
-       onDelete={onDelete}
-       onRefresh={onRefresh}/>
+        item={item as Datasource}
+        onDelete={onDelete}
+        onRefresh={onRefresh}
+      />
     )
   }
 
   if (type === "form") {
-    return (
-      <FormInfo onRefresh={onRefresh} onJobCreated={onJobCreated}/>
-    )
+    return <FormInfo onRefresh={onRefresh} onJobCreated={onJobCreated} />
   }
 
   const job = item as Job
-  return(
-    <JobInfo job={job}/>
-  )
+  return <JobInfo job={job} />
 }

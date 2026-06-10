@@ -1,12 +1,18 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ChevronDown, FileSpreadsheet, ListTree, Plus, FileCog } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useDatasources } from "@/hooks/use-datasources"
 import { useJobs } from "@/hooks/use-jobs"
-import { useEffect, useState } from "react"
+import { cn } from "@/lib/utils"
 import type { Datasource } from "@/types/datasource"
 import type { Job } from "@/types/job"
+import {
+  ChevronDown,
+  FileCog,
+  FileSpreadsheet,
+  ListTree,
+  Plus,
+} from "lucide-react"
+import { useEffect, useState } from "react"
 
 export default function TreePanel({
   onSelect,
@@ -14,13 +20,26 @@ export default function TreePanel({
   revealDatasourceId,
   onRevealHandled,
 }: {
-  onSelect: (item: Datasource | Job | string, type: "datasource" | "job" | "form") => void
+  onSelect: (
+    item: Datasource | Job | string,
+    type: "datasource" | "job" | "form",
+  ) => void
   refreshKey?: number
   revealDatasourceId?: string | null
   onRevealHandled?: () => void
 }) {
-  const { datasources, loading: dsLoading, error: dsError, refreshDatasources } = useDatasources()
-  const { jobs, loading: jobsLoading, error: jobsError, refreshJobs } = useJobs()
+  const {
+    datasources,
+    loading: dsLoading,
+    error: dsError,
+    refreshDatasources,
+  } = useDatasources()
+  const {
+    jobs,
+    loading: jobsLoading,
+    error: jobsError,
+    refreshJobs,
+  } = useJobs()
   const [openFolders, setOpenFolders] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -66,13 +85,9 @@ export default function TreePanel({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-1">
-        {loading && (
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        )}
+        {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
         {error && (
-          <p className="text-sm text-red-500">
-            Unable to load : {error}
-          </p>
+          <p className="text-sm text-red-500">Unable to load : {error}</p>
         )}
         {!loading &&
           !error &&
@@ -133,9 +148,7 @@ export default function TreePanel({
             )
           })}
         {!loading && !error && datasources.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            No datasources found!
-          </p>
+          <p className="text-sm text-muted-foreground">No datasources found!</p>
         )}
         <Button
           className="rounded-lg! mt-1 w-full bg-[#8828ad] text-white shadow-sm transition-all hover:bg-[#8828ad]/90 active:scale-[0.98]"

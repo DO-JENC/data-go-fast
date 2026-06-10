@@ -1,9 +1,9 @@
-import { useState } from "react"
-import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useDatasources } from "@/hooks/use-datasources"
+import { useState } from "react"
+import { toast } from "sonner"
 
 interface PipelineStep {
   column: string
@@ -29,7 +29,10 @@ export default function JobForm({
 
   function addStep() {
     if (!stepColumn.trim()) return
-    setSteps([...steps, { column: stepColumn, operator: stepOperator, value: stepValue }])
+    setSteps([
+      ...steps,
+      { column: stepColumn, operator: stepOperator, value: stepValue },
+    ])
     setStepColumn("")
     setStepOperator("==")
     setStepValue("")
@@ -127,12 +130,14 @@ export default function JobForm({
               <code className="ml-2 rounded bg-muted px-1 py-0.5">
                 {step.column}
               </code>
-              <span className="ml-2 text-muted-foreground">{step.operator}</span>
+              <span className="ml-2 text-muted-foreground">
+                {step.operator}
+              </span>
               <code className="ml-2 rounded bg-muted px-1 py-0.5">
                 {step.value}
               </code>
             </span>
-          
+
             <button
               type="button"
               onClick={() => removeStep(i)}

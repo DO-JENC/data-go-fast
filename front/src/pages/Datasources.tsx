@@ -1,12 +1,12 @@
 import DatasourceCard from "@/components/datasources/datasource-card"
 import TreePanel from "@/components/datasources/tree-panel"
 import { useDatasources } from "@/hooks/use-datasources"
-import { useEffect, useState } from "react"
 import type { Datasource } from "@/types/datasource"
 import type { Job } from "@/types/job"
+import { useState } from "react"
 
 export default function Datasources() {
-  const { datasources, removeDatasource } = useDatasources()
+  const { removeDatasource } = useDatasources()
   const [selected, setSelected] = useState<{
     item: Datasource | Job | string
     type: "datasource" | "job" | "form"
@@ -14,14 +14,13 @@ export default function Datasources() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [revealDsId, setRevealDsId] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (selected?.type === "datasource") {
-      const ds = selected.item as Datasource
-      if (!datasources.find((d) => d.id === ds.id)) {
-        setSelected(null)
-      }
+  async function handleDelete(id: string) {
+    const result = await removeDatasource(id)
+    if (result && selected?.type === "datasource") {
+      setSelected(null)
     }
-  }, [datasources])
+    return result
+  }
 
   function handleRefresh() {
     setRefreshKey((k) => k + 1)
@@ -48,19 +47,16 @@ export default function Datasources() {
             {selected
               ? selected.type === "datasource"
                 ? `Datasources`
-              : selected.type === "job"
-                ? `Job`
-                : `Add an entity`
-              : ``
-            }
+                : selected.type === "job"
+                  ? `Job`
+                  : `Add an entity`
+              : ``}
           </h1>
         </div>
         <DatasourceCard
           item={selected?.item ?? null}
           type={selected?.type ?? null}
-          onDelete={
-            selected?.type === "datasource" ? removeDatasource : undefined
-          }
+          onDelete={selected?.type === "datasource" ? handleDelete : undefined}
           onRefresh={handleRefresh}
           onJobCreated={handleJobCreated}
         />
