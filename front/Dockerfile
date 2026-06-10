@@ -13,7 +13,7 @@ WORKDIR /app
 COPY front/package.json front/pnpm-lock.yaml ./
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile
+    pnpm install --frozen-lockfile --ignore-scripts
 
 #######################
 # Build
