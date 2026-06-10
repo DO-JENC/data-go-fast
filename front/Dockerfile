@@ -1,45 +1,41 @@
 #######################
 # Dependencies
 #######################
-FROM node:24-slim AS deps
 
+FROM node:24-slim AS deps
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-
 RUN corepack enable
-
 WORKDIR /app
-
 COPY front/package.json front/pnpm-lock.yaml ./
-
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --ignore-scripts
 
 #######################
 # Build
 #######################
-FROM deps AS builder
 
+FROM deps AS builder
 # Copy source AFTER deps so the node_modules layer is cached
 COPY front/ .
-
 # Pass build-time env vars (e.g. VITE_API_URL) via --build-arg
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
-
 RUN pnpm run build
 
 #######################
 # Production
 #######################
-FROM nginx:1.27-alpine AS runner
 
+FROM nginx:1.27-alpine AS runner
 # Drop root: run nginx as non-root user
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-
 # Harden nginx: remove default config, use custom minimal one
 RUN rm /etc/nginx/conf.d/default.conf
+COPY --chown=appuser:appgroup front/nginx-main.conf /etc/nginx/nginx.conf
 COPY --chown=appuser:appgroup front/nginx.conf /etc/nginx/conf.d/app.conf
+COPY --chown=appuser:appgroup front/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 # Copy only the compiled static assets
 COPY --from=builder --chown=appuser:appgroup /app/dist /usr/share/nginx/html
@@ -52,9 +48,14 @@ RUN mkdir -p /var/cache/nginx /var/run /run \
 
 USER appuser
 
+# Pass build-time env vars (e.g. VITE_API_URL) via --build-arg
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD wget -qO- http://localhost:8080/health || exit 1
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD wget -qO- http://localhost:8080/health || exit 1
+
+CMD ["/docker-entrypoint.sh"]

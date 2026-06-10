@@ -4,7 +4,6 @@
  */
 
 const TOKEN_KEY = "access_token"
-const API_BASE_URL = import.meta.env.VITE_API_URL || ""
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string>
@@ -39,16 +38,9 @@ async function request<T>(
     url += `?${searchParams.toString()}`
   }
 
-  // Determine the full URL
-  // 1. If it's already a full URL, use it
-  // 2. If it starts with /api, use it as is (relative to the base)
-  // 3. Otherwise, prepend API_BASE_URL and /api
-  let fullUrl = url
-  if (!url.startsWith("http")) {
-    const prefix = url.startsWith("/api") ? "" : "/api"
-    const separator = url.startsWith("/") ? "" : "/"
-    fullUrl = `${API_BASE_URL}${prefix}${separator}${url}`
-  }
+  const fullUrl = url.startsWith("/api")
+    ? url
+    : `/api/${url.replace(/^\//, "")}`
 
   const response = await fetch(fullUrl, config)
 
