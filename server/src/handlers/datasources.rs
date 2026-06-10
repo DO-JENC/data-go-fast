@@ -1,3 +1,5 @@
+use apalis_core::request::Parts;
+use apalis_redis::{RedisContext, RedisStorage};
 use axum::{
   Json,
   body::Bytes,
@@ -5,17 +7,23 @@ use axum::{
   http::StatusCode,
   response::IntoResponse,
 };
-use common::infra::database::datasource::{Datasource, DatasourceType};
+use common::{
+  infra::database::datasource::{Datasource, DatasourceType, create_datasource_from_s3},
+  queue::models::{Job, Op, Pipeline},
+};
 use csv::Reader;
 use s3::{Bucket, error::S3Error};
 use serde::Deserialize;
 use serde_json::Value;
-use sqlx::{Error, Pool, Postgres, Row, postgres::PgRow, query};
+use sqlx::{Error, Pool, Postgres, Row, query};
 use std::str::FromStr;
 use uuid::Uuid;
 
-use crate::AppState;
 use crate::S3Instance;
+use crate::{
+  AppState,
+  handlers::jobs::{add_job_to_postgres, add_job_to_redis},
+};
 
 #[derive(Deserialize)]
 pub struct DatasourceFilters {
@@ -265,29 +273,11 @@ async fn add_file_to_s3(
   Ok(format!("s3://{}{}", s3_instance.bucket_name, s3_key))
 }
 
-async fn add_datasource_to_postgres(
-  pool: &Pool<Postgres>,
-  file_uuid: &Uuid,
-  datasource_s3_id: &str,
-  file_name: &str,
-  file_type: &DatasourceType,
-  file_size: &f64,
-  group: &Uuid,
-) -> Result<PgRow, Error> {
-  query(
-    "
-  INSERT INTO
-  datasources (id, s3_id, name, file_type, size, group_id)
-  VALUES ($1, $2, $3, $4, $5, $6 ) RETURNING *;",
-  )
-  .bind(file_uuid)
-  .bind(datasource_s3_id)
-  .bind(file_name)
-  .bind(file_type)
-  .bind(file_size)
-  .bind(group)
-  .fetch_one(pool)
-  .await
+fn create_pipeline(metadata: &Metadata) -> Result<Pipeline, String> {
+  Ok(vec![Op::Ingest {
+    r#type: metadata.file_type,
+    header: Some(metadata.header.to_string()),
+  }])
 }
 
 pub async fn csv_ingestion_handler(
@@ -305,6 +295,16 @@ pub async fn csv_ingestion_handler(
     Err(e) => return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)),
   };
 
+  let pipeline = match create_pipeline(&metadata) {
+    Ok(p) => p,
+    Err(e) => {
+      return (
+        StatusCode::BAD_REQUEST,
+        format!("Error creating pipeline: {}", e),
+      );
+    }
+  };
+
   // Make sure file is a correct format
   if let Err(e) = validate_file_format(&file_content, &metadata.file_type) {
     return (StatusCode::UNSUPPORTED_MEDIA_TYPE, e);
@@ -320,8 +320,9 @@ pub async fn csv_ingestion_handler(
   // TO-DO : Implement authentication and change group dynamically
   let group: Uuid = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
 
-  // Generate File UUID
+  // Generate File & Job UUID
   let file_uuid: Uuid = Uuid::new_v4();
+  let job_uuid: Uuid = Uuid::new_v4();
 
   // Upload file to S3 Bucket
   let s3_instance: S3Instance = state.s3_instance;
@@ -340,18 +341,43 @@ pub async fn csv_ingestion_handler(
 
   // Add datasource to Postgres
   let pool: Pool<Postgres> = state.pool;
-  let datasource_to_postgres: Result<PgRow, Error> = add_datasource_to_postgres(
+  let datasource_to_postgres = create_datasource_from_s3(
     &pool,
-    &file_uuid,
     &datasource_s3_id,
     &file_name,
-    &metadata.file_type,
-    &file_size,
     &group,
+    file_size,
+    metadata.file_type,
   )
   .await;
 
   if let Err(e) = datasource_to_postgres {
+    return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
+  };
+
+  // Define job name
+  let job_name: String = format!("Ingestion of {}", &file_name);
+
+  // Add ingest job to Redis
+  let redis_conn: RedisStorage<Job> = state.storage;
+  let ingest_job_to_redis: Result<Parts<RedisContext>, Error> = add_job_to_redis(
+    &redis_conn,
+    &pipeline,
+    &job_uuid,
+    &job_name,
+    &datasource_s3_id,
+  )
+  .await;
+
+  if let Err(e) = ingest_job_to_redis {
+    return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
+  };
+
+  // Add ingest job to Postgres
+  let ingest_job_to_postgres: Result<(), Error> =
+    add_job_to_postgres(&pool, &pipeline, &job_uuid, &job_name, &file_uuid).await;
+
+  if let Err(e) = ingest_job_to_postgres {
     return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
   };
 
