@@ -18,9 +18,6 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 FROM deps AS builder
 # Copy source AFTER deps so the node_modules layer is cached
 COPY front/ .
-# Pass build-time env vars (e.g. VITE_API_URL) via --build-arg
-ARG VITE_API_URL
-ENV VITE_API_URL=$VITE_API_URL
 RUN pnpm run build
 
 #######################
@@ -33,7 +30,7 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 # Harden nginx: remove default config, use custom minimal one
 RUN rm /etc/nginx/conf.d/default.conf
 COPY --chown=appuser:appgroup front/nginx-main.conf /etc/nginx/nginx.conf
-COPY --chown=appuser:appgroup front/nginx.conf /etc/nginx/conf.d/app.conf
+COPY --chown=appuser:appgroup front/nginx.conf /etc/nginx/conf.d/app.conf.template
 COPY --chown=appuser:appgroup front/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
@@ -47,10 +44,6 @@ RUN mkdir -p /var/cache/nginx /var/run /run \
     && ln -sf /dev/stderr /var/log/nginx/error.log
 
 USER appuser
-
-# Pass build-time env vars (e.g. VITE_API_URL) via --build-arg
-ARG VITE_API_URL
-ENV VITE_API_URL=$VITE_API_URL
 
 EXPOSE 8080
 
