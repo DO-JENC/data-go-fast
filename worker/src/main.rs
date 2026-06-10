@@ -12,10 +12,12 @@ use common::infra::database::datasource::{DatasourceType, create_datasource_from
 use common::infra::database::job::{update_job_result, update_job_status};
 use common::infra::s3::config::{S3Instance, init_s3_instance};
 use common::logs::init_logging;
+use common::infra::s3::config::{S3Instance, init_s3_instance};
 use common::queue::models::{Job, Op};
 use common::queue::storage::get_queue_storage;
 use sqlx::{Pool, Postgres, Row, query};
 use tracing::{error, info, instrument};
+use uuid::Uuid;
 
 use crate::execute::Operation;
 use crate::ingest::ingest_json;
@@ -48,7 +50,21 @@ async fn job_processing(
     }
   };
 
-  let _ = update_job_status(pool, &job.job_id, "running").await;
+  let request = query("SELECT id, file_type FROM datasources WHERE s3_id = $1")
+    .bind(&job.datasource_id)
+    .fetch_one(pool)
+    .await;
+
+  let (datasource_id, file_type): (Uuid, DatasourceType) = match request {
+    Ok(response) => (response.get("id"), response.get("file_type")),
+    Err(e) => {
+      eprintln!("Failed to get datasource file type: {}", e);
+      let _ = update_job_status(&pool, &job.job_id, "error").await;
+      return;
+    }
+  };
+
+  let _ = update_job_status(&pool, &job.job_id, "running").await;
 
   match file_type {
     DatasourceType::Csv => csv_processing(job, s3, pool).await,
