@@ -6,7 +6,7 @@
 <p align="center">
     <strong>data-go-fast</strong> — An Open-Source data processing app by Polytech Montpellier students
     <br/>
-    <em>Cloud‑native • Built in Rust • Event-driven microservices</em>
+    <em>Cloud‑native • Built in Rust</em>
 </p>
 
 ## 🏗️ Architecture (Rust Workspace)
