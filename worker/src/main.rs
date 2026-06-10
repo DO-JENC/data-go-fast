@@ -5,6 +5,7 @@ mod group_by;
 mod ingest;
 mod utils;
 
+use crate::filter::filter_json;
 use apalis::prelude::*;
 use apalis_redis::RedisStorage;
 use common::infra::database::config::create_pool_from_env;
@@ -12,7 +13,6 @@ use common::infra::database::datasource::{DatasourceType, create_datasource_from
 use common::infra::database::job::{update_job_result, update_job_status};
 use common::infra::s3::config::{S3Instance, init_s3_instance};
 use common::logs::init_logging;
-use common::infra::s3::config::{S3Instance, init_s3_instance};
 use common::queue::models::{Job, Op};
 use common::queue::storage::get_queue_storage;
 use sqlx::{Pool, Postgres, Row, query};
@@ -36,27 +36,13 @@ async fn job_processing(
   let pool = &*pool_data;
   let s3 = &*s3_data;
 
-  let request = query("SELECT file_type FROM datasources WHERE s3_id = $1")
+  let request = query("SELECT id, file_type FROM datasources WHERE s3_id = $1")
     .bind(&job.datasource_id)
     .fetch_one(pool)
     .await;
 
-  let file_type: DatasourceType = match request {
-    Ok(response) => response.get("file_type"),
-    Err(e) => {
-      eprintln!("Failed to get datasource file type: {}", e);
-      let _ = update_job_status(pool, &job.job_id, "error").await;
-      return;
-    }
-  };
-
-  let request = query("SELECT file_type FROM datasources WHERE s3_id = $1")
-    .bind(&job.datasource_id)
-    .fetch_one(pool)
-    .await;
-
-  let (file_type): DatasourceType = match request {
-    Ok(response) => response.get("file_type"),
+  let (datasource_id, file_type): (Uuid, DatasourceType) = match request {
+    Ok(response) => (response.get("id"), response.get("file_type")),
     Err(e) => {
       eprintln!("Failed to get datasource file type: {}", e);
       let _ = update_job_status(&pool, &job.job_id, "error").await;
@@ -68,7 +54,7 @@ async fn job_processing(
 
   match file_type {
     DatasourceType::Csv => csv_processing(job, s3, pool).await,
-    DatasourceType::Json => json_processing(job, s3, pool).await,
+    DatasourceType::Json => json_processing(job, s3, pool, datasource_id).await,
   }
 }
 
@@ -177,15 +163,15 @@ async fn shutdown_signal() {
   }
 }
 
-async fn json_processing(job: Job, s3: &S3Instance, pool: &Pool<Postgres>) {
+async fn json_processing(job: Job, s3: &S3Instance, pool: &Pool<Postgres>, datasource_id: Uuid) {
   println!("JSON Processing");
   for op in &job.pipeline {
     match op {
       Op::Ingest { .. } => {
-        ingest_json(pool, s3, &job).await;
+        ingest_json(&pool, s3, &job).await;
         return;
       }
-      Op::Filter { .. } => println!("JSON Filtering not yet implemented"),
+      Op::Filter { .. } => filter_json(&pool, &s3, &job, &datasource_id, op).await,
       Op::Aggregate { .. } => println!("JSON Aggregating not yet implemented"),
       Op::GroupBy { .. } => println!("JSON GroupBying not yet implemented"),
     }
