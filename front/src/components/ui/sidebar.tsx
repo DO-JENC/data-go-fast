@@ -264,7 +264,10 @@ function SidebarTrigger({
       data-slot="sidebar-trigger"
       variant="ghost"
       size="icon-sm"
-      className={cn("rounded", className)}
+      className={cn(
+        "rounded hover:text-[var(--color-purple-light)]",
+        className,
+      )}
       onClick={(event) => {
         onClick?.(event)
         toggleSidebar()
