@@ -1,3 +1,4 @@
+import { api } from "@/lib/api"
 import type { Job } from "@/types/job"
 import { useEffect, useState } from "react"
 
@@ -8,9 +9,8 @@ export function useJobs() {
 
   async function fetchJobs() {
     try {
-      const res = await fetch("/api/jobs")
-      if (!res.ok) throw new Error(`Erreur ${res.status}`)
-      setJobs(await res.json())
+      const data = await api.get<Job[]>("/jobs")
+      setJobs(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -20,11 +20,7 @@ export function useJobs() {
 
   useEffect(() => {
     const controller = new AbortController()
-    fetch("/api/jobs", { signal: controller.signal })
-      .then((res) => {
-        if (!res.ok) throw new Error(`Erreur ${res.status}`)
-        return res.json()
-      })
+    api.get<Job[]>("/jobs", { signal: controller.signal })
       .then((data) => setJobs(data))
       .catch((err) => {
         if (err.name !== "AbortError")
