@@ -45,8 +45,10 @@ COPY --chown=appuser:appgroup front/nginx.conf /etc/nginx/conf.d/app.conf
 COPY --from=builder --chown=appuser:appgroup /app/dist /usr/share/nginx/html
 
 # nginx needs to write temp/pid files; give non-root access
-RUN mkdir -p /var/cache/nginx /var/run \
-    && chown -R appuser:appgroup /var/cache/nginx /var/run /var/log/nginx
+RUN mkdir -p /var/cache/nginx /var/run /run \
+    && chown -R appuser:appgroup /var/cache/nginx /var/run /run /var/log/nginx \
+    && ln -sf /dev/stdout /var/log/nginx/access.log \
+    && ln -sf /dev/stderr /var/log/nginx/error.log
 
 USER appuser
 
