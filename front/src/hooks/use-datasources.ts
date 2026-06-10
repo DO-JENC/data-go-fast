@@ -13,9 +13,8 @@ export function useDatasources(initialPage = 1, limit = 10) {
 
   async function fetchDatasources() {
     try {
-      const res = await fetch("/api/datasources") // `/datasources?group_id=${currentGroup.id}&limit=${limit}&offset=${offset}`
-      if (!res.ok) throw new Error(`Erreur ${res.status}`)
-      setDatasources(await res.json())
+      const data = await api.get<Datasource[]>("/datasources")
+      setDatasources(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -25,11 +24,7 @@ export function useDatasources(initialPage = 1, limit = 10) {
 
   useEffect(() => {
     const controller = new AbortController()
-    fetch("/api/datasources", { signal: controller.signal })
-      .then((res) => {
-        if (!res.ok) throw new Error(`Erreur ${res.status}`)
-        return res.json()
-      })
+    api.get<Datasource[]>("/datasources", { signal: controller.signal })
       .then((data) => setDatasources(data))
       .catch((err) => {
         if (err.name !== "AbortError")
