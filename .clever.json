@@ -1,0 +1,20 @@
+{
+  "apps": [
+    {
+      "app_id": "app_6e964be7-c67f-47fc-b601-03f2545e77aa",
+      "org_id": "orga_e4d64185-94d8-4d10-9d26-31b39dafd743",
+      "deploy_url": "https://push-n3-par-clevercloud-customers.services.clever-cloud.com/app_6e964be7-c67f-47fc-b601-03f2545e77aa.git",
+      "git_ssh_url": "git+ssh://git@push-n3-par-clevercloud-customers.services.clever-cloud.com/app_6e964be7-c67f-47fc-b601-03f2545e77aa.git",
+      "name": "data-go-fast-server",
+      "alias": "server"
+    },
+    {
+      "app_id": "app_7227bf5d-834e-48b8-b43d-6340e606d5c7",
+      "org_id": "orga_e4d64185-94d8-4d10-9d26-31b39dafd743",
+      "deploy_url": "https://push-n3-par-clevercloud-customers.services.clever-cloud.com/app_7227bf5d-834e-48b8-b43d-6340e606d5c7.git",
+      "git_ssh_url": "git+ssh://git@push-n3-par-clevercloud-customers.services.clever-cloud.com/app_7227bf5d-834e-48b8-b43d-6340e606d5c7.git",
+      "name": "data-go-fast-front",
+      "alias": "front"
+    }
+  ]
+}

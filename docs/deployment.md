@@ -11,7 +11,7 @@ clever env set JWT_SECRET some_secret --alias server
 clever env set SERVER_PORT 8080 --alias server
 clever create --type docker data-go-fast-worker --alias worker --org orga_e4d64185-94d8-4d10-9d26-31b39dafd743
 clever create --type docker data-go-fast-front --alias front --org orga_e4d64185-94d8-4d10-9d26-31b39dafd743
-clever env set VITE_API_URL "https://<domain-name>" --alias front
+clever env set BACKGROUND_URL "https://<domain-name>" --alias front
 ```
 
 ### Route each app to it's subfolder
