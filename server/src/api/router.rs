@@ -17,7 +17,7 @@ use axum::{
   middleware,
   routing::{delete, get, post},
 };
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::CorsLayer;
 
 const FILE_SIZE_LIMIT: usize = 1024 * 1024 * 1024; // 1GB
 
@@ -67,18 +67,21 @@ fn groups_router(state: AppState) -> Router<AppState> {
 }
 
 pub fn router(state: AppState) -> Router {
+  // Define the exact headers frontend uses (avoids Any wildcard conflict)
+  let allowed_headers = [
+    axum::http::header::CONTENT_TYPE,
+    axum::http::header::AUTHORIZATION,
+  ];
+
   let cors = match std::env::var("ALLOWED_ORIGINS") {
-    Ok(origins) if origins == "*" => CorsLayer::new()
-      .allow_origin(Any)
-      .allow_methods(Any)
-      .allow_headers(Any),
     Ok(origins) => {
-      let origins = origins
+      let origins_vec = origins
         .split(',')
         .map(|s| s.trim().parse::<HeaderValue>().unwrap())
         .collect::<Vec<_>>();
+
       CorsLayer::new()
-        .allow_origin(origins)
+        .allow_origin(origins_vec)
         .allow_methods([
           Method::GET,
           Method::POST,
@@ -86,13 +89,24 @@ pub fn router(state: AppState) -> Router {
           Method::DELETE,
           Method::OPTIONS,
         ])
-        .allow_headers(Any)
+        .allow_headers(allowed_headers)
         .allow_credentials(true)
     }
+    // Safe fallback for local development if the environment variable is missing
     Err(_) => CorsLayer::new()
-      .allow_origin(Any)
-      .allow_methods(Any)
-      .allow_headers(Any),
+      .allow_origin([
+        "http://localhost:5173".parse::<HeaderValue>().unwrap(),
+        "http://127.0.0.1:5173".parse::<HeaderValue>().unwrap(),
+      ])
+      .allow_methods([
+        Method::GET,
+        Method::POST,
+        Method::PUT,
+        Method::DELETE,
+        Method::OPTIONS,
+      ])
+      .allow_headers(allowed_headers)
+      .allow_credentials(true),
   };
 
   Router::new()
