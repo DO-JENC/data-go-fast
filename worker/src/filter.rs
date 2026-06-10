@@ -190,7 +190,6 @@ pub async fn filter_json(
       let mut combined: Vec<serde_json::Value> = vec![];
       for item in response {
         let json: serde_json::Value = item.get("doc");
-        println!("JSON: {:?}", json);
         combined.push(json);
       }
       combined
