@@ -14,7 +14,6 @@ use common::infra::s3::config::{S3Instance, init_s3_instance};
 use common::queue::models::{Job, Op};
 use common::queue::storage::get_queue_storage;
 use sqlx::{Pool, Postgres, Row, query};
-use uuid::Uuid;
 
 use crate::execute::Operation;
 use crate::ingest::ingest_json;
