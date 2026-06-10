@@ -44,12 +44,12 @@ async fn job_processing(
     Ok(response) => (response.get("id"), response.get("file_type")),
     Err(e) => {
       eprintln!("Failed to get datasource file type: {}", e);
-      let _ = update_job_status(pool, &job.job_id, "error").await;
+      let _ = update_job_status(&pool, &job.job_id, "error").await;
       return;
     }
   };
 
-  let _ = update_job_status(pool, &job.job_id, "running").await;
+  let _ = update_job_status(&pool, &job.job_id, "running").await;
 
   match file_type {
     DatasourceType::Csv => csv_processing(job, s3, pool).await,
