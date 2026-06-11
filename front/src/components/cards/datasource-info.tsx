@@ -70,7 +70,10 @@ export default function DatasourceInfo({
                 {ds.file_type}
               </span>
             )}
-            <Download onClick={() => onDownload?.(ds.id)} />
+            <Download
+              className="size-4 cursor-pointer"
+              onClick={() => onDownload?.(ds.id)}
+            />
             {onDelete && (
               <AlertDialog>
                 <AlertDialogTrigger
