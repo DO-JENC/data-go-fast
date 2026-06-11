@@ -48,6 +48,26 @@ export function useDatasources(initialPage = 1, limit = 10) {
     [currentGroup, loadingGroup, page, limit],
   )
 
+  const downloadDatasource = useCallback(async (id: string) => {
+    const token = api.getToken()
+    const response = await fetch(`/api/datasources/${id}/download`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: "include",
+    })
+    if (!response.ok) {
+      throw new Error(`Erreur lors du téléchargement (${response.status})`)
+    }
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `datasource-${id}`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }, [])
+
   useEffect(() => {
     const controller = new AbortController()
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -79,6 +99,7 @@ export function useDatasources(initialPage = 1, limit = 10) {
     setPage,
     totalPages: Math.ceil(total / limit),
     removeDatasource,
+    downloadDatasource,
     refreshDatasources: () => fetchDatasources(),
   }
 }
