@@ -11,10 +11,10 @@ use common::infra::database::config::create_pool_from_env;
 use common::infra::database::datasource::{DatasourceType, create_datasource_from_s3};
 use common::infra::database::job::{update_job_result, update_job_status};
 use common::infra::s3::config::{S3Instance, init_s3_instance};
+use common::logs::init_logging;
 use common::queue::models::{Job, Op};
 use common::queue::storage::get_queue_storage;
 use sqlx::{Pool, Postgres, Row, query};
-use common::logs::init_logging;
 use tracing::{error, info, instrument};
 
 use crate::execute::Operation;

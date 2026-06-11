@@ -314,7 +314,7 @@ async fn add_file_to_s3(
 fn create_pipeline(metadata: &Metadata) -> Result<Pipeline, String> {
   Ok(vec![Op::Ingest {
     r#type: metadata.file_type,
-    header: Some(metadata.header.to_string()),
+    header: Some(metadata.header.to_string()).is_some(),
   }])
 }
 
