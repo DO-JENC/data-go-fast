@@ -28,7 +28,14 @@ interface AggregateStep {
   functions: string[]
 }
 
-type PipelineStep = FilterStep | AggregateStep
+interface GroupByStep {
+  type: "group_by"
+  by: string
+  column: string
+  function: string
+}
+
+type PipelineStep = FilterStep | AggregateStep | GroupByStep
 
 export default function JobForm({
   onJobCreated,
@@ -49,6 +56,26 @@ export default function JobForm({
   const [aggOpen, setAggOpen] = useState(false)
   const [aggColumns, setAggColumns] = useState("")
   const [aggFunctions, setAggFunctions] = useState<string[]>([])
+
+  const [groupByOpen, setGroupByOpen] = useState(false)
+  const [groupByColumn, setGroupByColumn] = useState("")
+  const [groupByFunction, setGroupByFunction] = useState("sum")
+  const [groupByBy, setGroupByBy] = useState("")
+
+  function addGroupByStep() {
+    if (!groupByBy.trim() || !groupByColumn.trim()) return
+    const step: GroupByStep = {
+      type: "group_by",
+      by: groupByBy,
+      column: groupByColumn,
+      function: groupByFunction,
+    }
+    setSteps([...steps, step])
+    setGroupByBy("")
+    setGroupByColumn("")
+    setGroupByFunction("sum")
+    setGroupByOpen(false)
+  }
 
   function addFilterStep() {
     if (!stepColumn.trim()) return
@@ -106,6 +133,13 @@ export default function JobForm({
             column: s.column,
             operator: s.operator,
             value: tryParseJson(s.value),
+          }
+        }
+        if (s.type === "group_by") {
+          return {
+            op: "group_by",
+            by: s.by,
+            aggregate: { column: s.column, function: s.function },
           }
         }
         return {
@@ -181,6 +215,15 @@ export default function JobForm({
             >
               + Aggregate
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="border-emerald-600 text-emerald-700 shadow-sm transition-all hover:bg-emerald-50 active:scale-[0.98]"
+              size="xs"
+              onClick={() => setGroupByOpen(true)}
+            >
+              + Group By
+            </Button>
           </div>
         </div>
         {steps.length === 0 && (
@@ -206,7 +249,7 @@ export default function JobForm({
                   {step.value}
                 </code>
               </span>
-            ) : (
+            ) : step.type === "aggregate" ? (
               <span>
                 <span className="rounded bg-purple-100 px-1 py-0.5 text-purple-700">
                   aggregate
@@ -219,6 +262,19 @@ export default function JobForm({
                 <code className="ml-1 rounded bg-muted px-1 py-0.5">
                   {step.functions.join(", ")}
                 </code>
+              </span>
+            ) : (
+              <span>
+                <span className="rounded bg-emerald-100 px-1 py-0.5 text-emerald-700">
+                  group_by
+                </span>
+                <span className="ml-2 text-muted-foreground">by:</span>
+                <code className="ml-1 rounded bg-muted px-1 py-0.5">
+                  {step.by}
+                </code>
+                <span className="ml-2 text-muted-foreground">
+                  {step.function}({step.column})
+                </span>
               </span>
             )}
 
@@ -359,6 +415,72 @@ export default function JobForm({
                   type="button"
                   className="flex-1 bg-[#8828ad] text-white shadow-sm transition-all hover:bg-[#8828ad]/90 active:scale-[0.98]"
                   onClick={addAggregateStep}
+                >
+                  Add
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {groupByOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+          onClick={() => setGroupByOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-xl bg-white p-4 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="mb-3 text-sm font-medium">Add group by step</h3>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="groupby-by">Group by column</Label>
+                <Input
+                  id="groupby-by"
+                  value={groupByBy}
+                  onChange={(e) => setGroupByBy(e.target.value)}
+                  placeholder="e.g. category"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="groupby-column">Aggregate column</Label>
+                <Input
+                  id="groupby-column"
+                  value={groupByColumn}
+                  onChange={(e) => setGroupByColumn(e.target.value)}
+                  placeholder="e.g. revenue"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="groupby-function">Function</Label>
+                <select
+                  id="groupby-function"
+                  value={groupByFunction}
+                  onChange={(e) => setGroupByFunction(e.target.value)}
+                  className="h-8 rounded-lg border border-input bg-white! px-2.5 text-sm"
+                >
+                  {["sum", "avg", "median", "min", "max", "count"].map((fn) => (
+                    <option key={fn} value={fn}>
+                      {fn}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setGroupByOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1 bg-[#8828ad] text-white shadow-sm transition-all hover:bg-[#8828ad]/90 active:scale-[0.98]"
+                  onClick={addGroupByStep}
                 >
                   Add
                 </Button>

@@ -9,7 +9,7 @@ export interface Job {
   result_datasource_id: string | null
 }
 
-export type PipelineOp = IngestOp | FilterOp | AggregateOp
+export type PipelineOp = IngestOp | FilterOp | AggregateOp | GroupByOp
 
 export interface IngestOp {
   op: "ingest"
@@ -28,4 +28,13 @@ export interface AggregateOp {
   op: "aggregate"
   columns: string[]
   functions: string[]
+}
+
+export interface GroupByOp {
+  op: "group_by"
+  by: string
+  aggregate: {
+    column: string
+    function: string
+  }
 }
