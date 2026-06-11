@@ -53,7 +53,10 @@ pub async fn ingest_json(pool: &Pool<Postgres>, s3: &S3Instance, job: &Job) {
   .fetch_one(pool)
   .await
   {
-    Ok(_) => println!("JSON File ingested."),
+    Ok(_) => {
+      println!("JSON File ingested.");
+      let _ = update_job_status(pool, &job.job_id, "done").await;
+    }
     Err(e) => {
       eprintln!("Failed to ingest JSON file: {}", e);
       let _ = update_job_status(pool, &job.job_id, "error").await;

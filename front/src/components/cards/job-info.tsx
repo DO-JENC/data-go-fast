@@ -48,9 +48,7 @@ function renderPipelineOp(op: PipelineOp, i: number) {
         <div key={i} className="flex items-center gap-2 text-sm">
           <ArrowRight className="size-3 text-muted-foreground" />
           <span className="text-muted-foreground">Group by</span>
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">
-            {op.by}
-          </code>
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">{op.by}</code>
           <span className="text-xs text-muted-foreground">
             {op.aggregate.function}({op.aggregate.column})
           </span>

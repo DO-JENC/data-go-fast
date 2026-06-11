@@ -169,7 +169,6 @@ async fn json_processing(job: Job, s3: &S3Instance, pool: &Pool<Postgres>, datas
     match op {
       Op::Ingest { .. } => {
         ingest_json(pool, s3, &job).await;
-        return;
       }
       Op::Filter { .. } => filter_json(pool, s3, &job, &datasource_id, op).await,
       Op::Aggregate { .. } => json_aggregate(pool, s3, &job, &datasource_id, op).await,

@@ -17,7 +17,7 @@ use common::{
 use csv::Reader;
 use s3::{Bucket, error::S3Error};
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use sqlx::{Error, Pool, Postgres, Row, query};
 use std::str::FromStr;
 use tracing::{error, info, instrument, warn};
