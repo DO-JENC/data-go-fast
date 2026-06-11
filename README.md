@@ -18,10 +18,15 @@
 *   📦 **`common` (Shared Library):** The core library shared by both the `server` and the `worker`. It acts as the single source of truth for our domain models (e.g., `Job`, `Datasource`, `User`) and contains all infrastructure configurations (PostgreSQL connections via SQLx, Redis clients, S3 configuration). This prevents code duplication across the microservices.
 *   🎨 **`front`:** A React/TypeScript that provides the user interface for datasource management, job monitoring, and pipeline execution.
 
-### 🔄 How it works
+![architechture](./docs/archi.png)
+
+## 🔄 How it works
 When a user uploads a dataset, the **`server`** streams it to **Garage S3**, logs the metadata in **PostgreSQL**, and pushes a job to **Redis**. The **`worker`** picks up the job from Redis, downloads the raw data from S3, executes the pipeline operation, uploads the result back to S3, and creates a new datasource entry in the database.
 
+## Setup and deployment
+- [Setup](./SETUP.md)
 
+- [Clever Cloud deployment](./DEPLOYMENT.md)
 
 ## 👷👷‍♀️ Contributors
 - Nadia LAHYA ([@nadouulh](https://github.com/nadouulh))
