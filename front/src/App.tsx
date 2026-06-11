@@ -1,6 +1,7 @@
 import { Footer } from "@/components/layout/footer"
 import { Header } from "@/components/layout/header"
 import { Toaster } from "@/components/ui/sonner"
+import PageNotFound from "@/pages/404"
 import Datasources from "@/pages/Datasources"
 import Login from "@/pages/Login"
 import Signup from "@/pages/Signup"
@@ -101,6 +102,8 @@ function App() {
                   <Route path="/signup" element={<Signup />} />
                   <Route path="/login" element={<Login />} />
                 </Route>
+                {/* 404 - Catch all unmatched routes */}
+                <Route path="*" element={<PageNotFound />} />
               </Routes>
             </div>
 
