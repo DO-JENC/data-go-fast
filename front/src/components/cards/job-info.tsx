@@ -1,35 +1,62 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import type { FilterOp, IngestOp, Job } from "@/types/job"
+import type { Job, PipelineOp } from "@/types/job"
 import { ArrowRight, FileCog } from "lucide-react"
 
-function renderPipelineOp(op: IngestOp | FilterOp, i: number) {
-  if (op.op === "ingest") {
-    return (
-      <div key={i} className="flex items-center gap-2 text-sm">
-        <ArrowRight className="size-3 text-muted-foreground" />
-        <span className="text-muted-foreground">Ingest</span>
-        <span className="rounded border px-1.5 py-0.5 text-xs uppercase">
-          {op.type}
-        </span>
-        <span className="text-xs text-muted-foreground">
-          header: {op.header ? "Yes" : "No"}
-        </span>
-      </div>
-    )
+function renderPipelineOp(op: PipelineOp, i: number) {
+  switch (op.op) {
+    case "ingest":
+      return (
+        <div key={i} className="flex items-center gap-2 text-sm">
+          <ArrowRight className="size-3 text-muted-foreground" />
+          <span className="text-muted-foreground">Ingest</span>
+          <span className="rounded border px-1.5 py-0.5 text-xs uppercase">
+            {op.type}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            header: {op.header ? "Yes" : "No"}
+          </span>
+        </div>
+      )
+    case "filter":
+      return (
+        <div key={i} className="flex items-center gap-2 text-sm">
+          <ArrowRight className="size-3 text-muted-foreground" />
+          <span className="text-muted-foreground">Filter</span>
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">
+            {op.column} {op.operator} {String(op.value)}
+          </code>
+        </div>
+      )
+    case "aggregate":
+      return (
+        <div key={i} className="flex items-center gap-2 text-sm">
+          <ArrowRight className="size-3 text-muted-foreground" />
+          <span className="text-muted-foreground">Aggregate</span>
+          <span className="text-xs text-muted-foreground">columns:</span>
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">
+            {op.columns.join(", ")}
+          </code>
+          <span className="text-xs text-muted-foreground">fns:</span>
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">
+            {op.functions.join(", ")}
+          </code>
+        </div>
+      )
+    case "group_by":
+      return (
+        <div key={i} className="flex items-center gap-2 text-sm">
+          <ArrowRight className="size-3 text-muted-foreground" />
+          <span className="text-muted-foreground">Group by</span>
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">
+            {op.by}
+          </code>
+          <span className="text-xs text-muted-foreground">
+            {op.aggregate.function}({op.aggregate.column})
+          </span>
+        </div>
+      )
   }
-  if (op.op === "filter") {
-    return (
-      <div key={i} className="flex items-center gap-2 text-sm">
-        <ArrowRight className="size-3 text-muted-foreground" />
-        <span className="text-muted-foreground">Filter</span>
-        <code className="rounded bg-muted px-1 py-0.5 text-xs">
-          {op.column} {op.operator} {String(op.value)}
-        </code>
-      </div>
-    )
-  }
-  return null
 }
 
 export default function JobInfo({ job }: { job: Job }) {
