@@ -86,6 +86,17 @@ export function GroupProvider({ children }: { children: ReactNode }) {
     [],
   )
 
+  const deleteGroup = useCallback(
+    async (groupId: string): Promise<void> => {
+      await api.delete(`/groups/${groupId}`)
+      if (currentGroup?.id === groupId) {
+        selectGroup(null)
+      }
+      await getGroups(page)
+    },
+    [currentGroup?.id, getGroups, page, selectGroup],
+  )
+
   const createGroup = useCallback(
     async (name: string): Promise<Group> => {
       const group = await api.post<Group>("/groups", { name })
@@ -142,6 +153,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
         createGroup,
         searchAvailableGroups,
         fetchGroupMembers,
+        deleteGroup,
       }}
     >
       {children}
