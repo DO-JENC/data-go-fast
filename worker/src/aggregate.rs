@@ -14,7 +14,7 @@ use sqlx::{Pool, Postgres, Row};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::utils::{parse_s3_id, upload_to_s3};
+use common::infra::s3::utils::{parse_s3_id, upload_to_s3};
 
 pub fn sum(values: &[f64]) -> f64 {
   values.iter().sum()
