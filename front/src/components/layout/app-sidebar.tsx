@@ -29,6 +29,7 @@ import {
   Eye,
   Loader2,
   Plus,
+  Trash2,
 } from "lucide-react" // Added Eye icon
 import { useCallback, useEffect, useRef, useState } from "react"
 
@@ -47,6 +48,7 @@ export function AppSidebar() {
     joinGroup,
     createGroup,
     searchAvailableGroups,
+    deleteGroup,
     fetchGroupMembers, // Extracted from our context update
   } = useGroups()
   const { user } = useAuth()
@@ -120,6 +122,11 @@ export function AppSidebar() {
     const members = await fetchGroupMembers(group.id)
     setGroupMembers(members)
     setLoadingMembers(false)
+  }
+
+  const handleDeleteGroup = async (e: React.MouseEvent, group: Group) => {
+    e.stopPropagation()
+    await deleteGroup(group.id)
   }
 
   const handleJoin = async () => {
@@ -218,17 +225,26 @@ export function AppSidebar() {
                         <span className="w-1.5 h-1.5 rounded-full bg-primary/60 flex-shrink-0" />
                         <span className="flex-1 truncate">{group.name}</span>
                         {currentGroup?.id === group.id && (
-                          <Check className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-purple)] mr-5" />
+                          <Check className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-purple)] mr-7" />
                         )}
                       </button>
 
                       {/* View Members Eye Button */}
                       <button
                         onClick={(e) => handleViewMembers(e, group)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-sidebar-border transition-all"
+                        className="absolute right-8 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-sidebar-border transition-all"
                         title="View members"
                       >
                         <Eye color="black" className="w-3.5 h-3.5" />
+                      </button>
+
+                      {/* Delete group button */}
+                      <button
+                        onClick={(e) => handleDeleteGroup(e, group)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-sidebar-border transition-all"
+                        title="Delete group"
+                      >
+                        <Trash2 color="black" className="w-3.5 h-3.5" />
                       </button>
                     </SidebarMenuItem>
                   ))

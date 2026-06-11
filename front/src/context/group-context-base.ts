@@ -24,6 +24,7 @@ export interface GroupContextType {
   searchAvailableGroups: (query: string) => Promise<Group[]>
 
   fetchGroupMembers: (groupId: string) => Promise<Member[]>
+  deleteGroup: (groupId: string) => Promise<void>
 }
 
 export const GroupContext = createContext<GroupContextType | undefined>(
