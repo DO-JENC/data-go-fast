@@ -6,11 +6,29 @@ import { api } from "@/lib/api"
 import { useState } from "react"
 import { toast } from "sonner"
 
-interface PipelineStep {
+const AGGREGATE_FUNCTIONS = [
+  "sum",
+  "avg",
+  "median",
+  "min",
+  "max",
+  "count",
+] as const
+
+interface FilterStep {
+  type: "filter"
   column: string
   operator: string
   value: string
 }
+
+interface AggregateStep {
+  type: "aggregate"
+  columns: string[]
+  functions: string[]
+}
+
+type PipelineStep = FilterStep | AggregateStep
 
 export default function JobForm({
   onJobCreated,
@@ -23,21 +41,52 @@ export default function JobForm({
   const [steps, setSteps] = useState<PipelineStep[]>([])
   const [submitting, setSubmitting] = useState(false)
 
-  const [dialogOpen, setDialogOpen] = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
   const [stepColumn, setStepColumn] = useState("")
   const [stepOperator, setStepOperator] = useState("==")
   const [stepValue, setStepValue] = useState("")
 
-  function addStep() {
+  const [aggOpen, setAggOpen] = useState(false)
+  const [aggColumns, setAggColumns] = useState("")
+  const [aggFunctions, setAggFunctions] = useState<string[]>([])
+
+  function addFilterStep() {
     if (!stepColumn.trim()) return
-    setSteps([
-      ...steps,
-      { column: stepColumn, operator: stepOperator, value: stepValue },
-    ])
+    const step: FilterStep = {
+      type: "filter",
+      column: stepColumn,
+      operator: stepOperator,
+      value: stepValue,
+    }
+    setSteps([...steps, step])
     setStepColumn("")
     setStepOperator("==")
     setStepValue("")
-    setDialogOpen(false)
+    setFilterOpen(false)
+  }
+
+  function addAggregateStep() {
+    const columns = aggColumns
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean)
+    if (columns.length === 0) return
+    if (aggFunctions.length === 0) return
+    const step: AggregateStep = {
+      type: "aggregate",
+      columns,
+      functions: aggFunctions,
+    }
+    setSteps([...steps, step])
+    setAggColumns("")
+    setAggFunctions([])
+    setAggOpen(false)
+  }
+
+  function toggleFunction(fn: string) {
+    setAggFunctions((prev) =>
+      prev.includes(fn) ? prev.filter((f) => f !== fn) : [...prev, fn],
+    )
   }
 
   function removeStep(index: number) {
@@ -50,12 +99,21 @@ export default function JobForm({
 
     setSubmitting(true)
     try {
-      const pipeline = steps.map((s) => ({
-        op: "filter",
-        column: s.column,
-        operator: s.operator,
-        value: tryParseJson(s.value),
-      }))
+      const pipeline = steps.map((s) => {
+        if (s.type === "filter") {
+          return {
+            op: "filter",
+            column: s.column,
+            operator: s.operator,
+            value: tryParseJson(s.value),
+          }
+        }
+        return {
+          op: "aggregate",
+          columns: s.columns,
+          functions: s.functions,
+        }
+      })
 
       await api.post("/jobs", { name, datasource_id: datasourceId, pipeline })
 
@@ -105,14 +163,25 @@ export default function JobForm({
           <span className="text-sm font-medium text-gray-700">
             Pipeline steps
           </span>
-          <Button
-            type="button"
-            className="bg-[#8828ad] text-white shadow-sm transition-all hover:bg-[#8828ad]/90 active:scale-[0.98]"
-            size="xs"
-            onClick={() => setDialogOpen(true)}
-          >
-            + Add filter step
-          </Button>
+          <div className="flex gap-1">
+            <Button
+              type="button"
+              className="bg-[#8828ad] text-white shadow-sm transition-all hover:bg-[#8828ad]/90 active:scale-[0.98]"
+              size="xs"
+              onClick={() => setFilterOpen(true)}
+            >
+              + Filter
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="border-[#8828ad] text-[#8828ad] shadow-sm transition-all hover:bg-[#8828ad]/10 active:scale-[0.98]"
+              size="xs"
+              onClick={() => setAggOpen(true)}
+            >
+              + Aggregate
+            </Button>
+          </div>
         </div>
         {steps.length === 0 && (
           <p className="text-xs text-muted-foreground">No steps yet</p>
@@ -122,17 +191,36 @@ export default function JobForm({
             key={i}
             className="flex items-center justify-between gap-2 rounded-md bg-white px-2 py-1 text-xs"
           >
-            <span>
-              <code className="ml-2 rounded bg-muted px-1 py-0.5">
-                {step.column}
-              </code>
-              <span className="ml-2 text-muted-foreground">
-                {step.operator}
+            {step.type === "filter" ? (
+              <span>
+                <span className="rounded bg-blue-100 px-1 py-0.5 text-blue-700">
+                  filter
+                </span>
+                <code className="ml-2 rounded bg-muted px-1 py-0.5">
+                  {step.column}
+                </code>
+                <span className="ml-2 text-muted-foreground">
+                  {step.operator}
+                </span>
+                <code className="ml-2 rounded bg-muted px-1 py-0.5">
+                  {step.value}
+                </code>
               </span>
-              <code className="ml-2 rounded bg-muted px-1 py-0.5">
-                {step.value}
-              </code>
-            </span>
+            ) : (
+              <span>
+                <span className="rounded bg-purple-100 px-1 py-0.5 text-purple-700">
+                  aggregate
+                </span>
+                <span className="ml-2 text-muted-foreground">columns:</span>
+                <code className="ml-1 rounded bg-muted px-1 py-0.5">
+                  {step.columns.join(", ")}
+                </code>
+                <span className="ml-2 text-muted-foreground">fns:</span>
+                <code className="ml-1 rounded bg-muted px-1 py-0.5">
+                  {step.functions.join(", ")}
+                </code>
+              </span>
+            )}
 
             <button
               type="button"
@@ -153,10 +241,10 @@ export default function JobForm({
         {submitting ? "Creating..." : "Create Job"}
       </Button>
 
-      {dialogOpen && (
+      {filterOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
-          onClick={() => setDialogOpen(false)}
+          onClick={() => setFilterOpen(false)}
         >
           <div
             className="w-full max-w-sm rounded-xl bg-white p-4 shadow-lg"
@@ -202,14 +290,75 @@ export default function JobForm({
                   type="button"
                   variant="outline"
                   className="flex-1"
-                  onClick={() => setDialogOpen(false)}
+                  onClick={() => setFilterOpen(false)}
                 >
                   Cancel
                 </Button>
                 <Button
                   type="button"
                   className="flex-1 bg-[#8828ad] text-white shadow-sm transition-all hover:bg-[#8828ad]/90 active:scale-[0.98]"
-                  onClick={addStep}
+                  onClick={addFilterStep}
+                >
+                  Add
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {aggOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+          onClick={() => setAggOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-xl bg-white p-4 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="mb-3 text-sm font-medium">Add aggregate step</h3>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="agg-columns">Columns (comma-separated)</Label>
+                <Input
+                  id="agg-columns"
+                  value={aggColumns}
+                  onChange={(e) => setAggColumns(e.target.value)}
+                  placeholder="e.g. age, salary, score"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label>Functions</Label>
+                <div className="flex flex-wrap gap-2">
+                  {AGGREGATE_FUNCTIONS.map((fn) => (
+                    <label
+                      key={fn}
+                      className="flex cursor-pointer items-center gap-1 text-xs"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={aggFunctions.includes(fn)}
+                        onChange={() => toggleFunction(fn)}
+                        className="size-3.5 rounded border-gray-300 text-[#8828ad] accent-[#8828ad]"
+                      />
+                      {fn}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setAggOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1 bg-[#8828ad] text-white shadow-sm transition-all hover:bg-[#8828ad]/90 active:scale-[0.98]"
+                  onClick={addAggregateStep}
                 >
                   Add
                 </Button>
