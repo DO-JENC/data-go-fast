@@ -25,7 +25,10 @@ async function request<T>(
   }
 
   // Only set Content-Type to application/json if it's not FormData and not already set
-  if (!(options.body instanceof FormData) && !headers.hasOwnProperty("Content-Type")) {
+  if (
+    !(options.body instanceof FormData) &&
+    !Object.prototype.hasOwnProperty.call(headers, "Content-Type")
+  ) {
     ;(headers as Record<string, string>)["Content-Type"] = "application/json"
   }
 
@@ -99,7 +102,11 @@ export const api = {
       ...options,
       method: "POST",
       body:
-        body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
+        body instanceof FormData
+          ? body
+          : body
+            ? JSON.stringify(body)
+            : undefined,
     }),
 
   put: <T>(url: string, body?: unknown, options?: RequestOptions) =>
@@ -107,7 +114,11 @@ export const api = {
       ...options,
       method: "PUT",
       body:
-        body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
+        body instanceof FormData
+          ? body
+          : body
+            ? JSON.stringify(body)
+            : undefined,
     }),
 
   delete: <T>(url: string, options?: RequestOptions) =>

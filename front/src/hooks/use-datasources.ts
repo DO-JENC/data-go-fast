@@ -45,11 +45,12 @@ export function useDatasources(initialPage = 1, limit = 10) {
       }
     },
     // loadingGroup is a dep so the effect re-runs once the group is resolved
-    [currentGroup?.id, loadingGroup, page, limit],
+    [currentGroup, loadingGroup, page, limit],
   )
 
   useEffect(() => {
     const controller = new AbortController()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchDatasources(controller.signal)
     return () => controller.abort()
   }, [fetchDatasources])

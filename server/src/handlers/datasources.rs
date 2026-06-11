@@ -46,7 +46,10 @@ pub async fn get_all_datasources(
 ) -> Result<Json<PaginatedResponse<Datasource>>, (StatusCode, String)> {
   let group_id = filters.group_id.ok_or_else(|| {
     warn!("get_all_datasources called without group_id");
-    (StatusCode::BAD_REQUEST, "Missing required parameter: group_id".to_string())
+    (
+      StatusCode::BAD_REQUEST,
+      "Missing required parameter: group_id".to_string(),
+    )
   })?;
 
   let limit = filters.limit.unwrap_or(10);
@@ -185,7 +188,11 @@ fn parse_metadata(metadata: Value) -> Result<Metadata, (StatusCode, String)> {
     }
   };
 
-  Ok(Metadata { file_type, header, group_id })
+  Ok(Metadata {
+    file_type,
+    header,
+    group_id,
+  })
 }
 
 async fn parse_multipart(
