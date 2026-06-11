@@ -13,7 +13,7 @@ use serde_json::Value;
 use sqlx::{Pool, Postgres, Row, query};
 use uuid::Uuid;
 
-use crate::utils::{parse_s3_id, upload_to_s3};
+use common::infra::s3::utils::{parse_s3_id, upload_to_s3};
 
 // Read CSV rows, keep only those matching the condition, write back as CSV
 pub fn apply_filter(
