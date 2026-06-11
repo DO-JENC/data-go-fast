@@ -1,6 +1,20 @@
+use common::{
+  infra::{
+    database::{
+      datasource::{DatasourceType, create_datasource_from_s3},
+      job::{update_job_result, update_job_status},
+    },
+    s3::config::S3Instance,
+  },
+  queue::models::{Job, Op},
+};
 use csv::Reader;
 use serde_json::{Map, Value};
+use sqlx::{Pool, Postgres, Row};
 use std::collections::HashMap;
+use uuid::Uuid;
+
+use crate::utils::{parse_s3_id, upload_to_s3};
 
 pub fn sum(values: &[f64]) -> f64 {
   values.iter().sum()
@@ -104,4 +118,143 @@ pub fn aggregate_csv(
   }
 
   serde_json::to_vec(&Value::Object(root)).map_err(|e| format!("Failed to serialize JSON: {}", e))
+}
+
+pub async fn json_aggregate(
+  pool: &Pool<Postgres>,
+  s3: &S3Instance,
+  job: &Job,
+  datasource_id: &Uuid,
+  op: &Op,
+) {
+  // Extract columns and functions from Operation
+  let (columns, functions) = match op {
+    Op::Aggregate { columns, functions } => (columns, functions),
+    _ => {
+      eprintln!("Failed to extract aggregate arguments");
+      let _ = update_job_status(pool, &job.job_id, "error").await;
+      return;
+    }
+  };
+
+  let (group_uuid, _, _) = match parse_s3_id(&job.datasource_id) {
+    Ok(t) => t,
+    Err(e) => {
+      eprintln!("Failed to parse S3 ID: {}", e);
+      let _ = update_job_status(pool, &job.job_id, "error").await;
+      return;
+    }
+  };
+
+  // Build SELECT clause: SUM((doc->>'col')::numeric), AVG((doc->>'col')::numeric), ...
+  let select_parts: Vec<String> = columns
+    .iter()
+    .flat_map(|col| {
+      functions.iter().map(move |func| {
+        let func_lower = func.to_lowercase(); // bind to a local variable
+        let sql_func = match func_lower.as_str() {
+          "avg" => "AVG",
+          "sum" => "SUM",
+          "min" => "MIN",
+          "max" => "MAX",
+          "count" => "COUNT",
+          other => other,
+        };
+        format!(
+          "{}((doc->>'{}')::numeric)::float8 AS \"{}_{}\"",
+          sql_func, col, col, func_lower
+        )
+      })
+    })
+    .collect();
+
+  let query = format!(
+    "SELECT {} FROM json_table, jsonb_array_elements(document) AS doc WHERE datasource_id = $1",
+    select_parts.join(", ")
+  );
+
+  println!("QUERY: {:?}", query);
+  println!("datasource_id: {:?}", datasource_id);
+
+  let row = match sqlx::query(&query)
+    .bind(datasource_id)
+    .fetch_one(pool)
+    .await
+  {
+    Ok(row) => row,
+    Err(e) => {
+      eprintln!("Aggregate query failed: {}", e);
+      let _ = update_job_status(pool, &job.job_id, "error").await;
+      return;
+    }
+  };
+
+  println!("row:, {:?}", row);
+
+  // Build result: { "Rating": { "avg": 3.41, "sum": 1126.0 }, "Year": { ... } }
+  let mut result: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
+
+  for col in columns {
+    let mut col_map: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
+
+    for func in functions {
+      let label = format!("{}_{}", col, func);
+      let value: Option<f64> = row.try_get(label.as_str()).unwrap_or(None);
+      col_map.insert(
+        func.to_lowercase(),
+        match value {
+          Some(v) => serde_json::Value::from(v),
+          None => serde_json::Value::Null,
+        },
+      );
+    }
+
+    result.insert(col.clone(), serde_json::Value::Object(col_map));
+  }
+
+  let json_result = serde_json::Value::Object(result);
+  println!("{}", json_result);
+
+  let current_bytes: Vec<u8> = match serde_json::to_vec(&json_result) {
+    Ok(current_bytes) => current_bytes,
+    Err(e) => {
+      eprintln!("Failed to convert JSON to Vec<u8>: {}", e);
+      let _ = update_job_status(pool, &job.job_id, "error").await;
+      return;
+    }
+  };
+
+  let new_s3_id = match upload_to_s3(s3, &current_bytes, &group_uuid, "json").await {
+    Ok(id) => id,
+    Err(e) => {
+      eprintln!("Failed to upload to S3: {}", e);
+      let _ = update_job_status(pool, &job.job_id, "error").await;
+      return;
+    }
+  };
+
+  let size_mb = current_bytes.len() as f64 / (1024.0 * 1024.0);
+  let base_name = job.name.clone();
+
+  match create_datasource_from_s3(
+    pool,
+    &new_s3_id,
+    &base_name,
+    &group_uuid,
+    size_mb,
+    DatasourceType::Json,
+  )
+  .await
+  {
+    Ok(new_id) => {
+      println!("Datasource created with ID: {}", new_id);
+      if let Err(e) = update_job_result(pool, &job.job_id, &new_id).await {
+        eprintln!("Failed to update job result: {}", e);
+      }
+    }
+    Err(e) => {
+      eprintln!("Failed to create datasource: {}", e);
+      let _ = update_job_status(pool, &job.job_id, "error").await;
+    }
+  }
 }
