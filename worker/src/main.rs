@@ -22,21 +22,21 @@ use crate::ingest::ingest_json;
 use crate::utils::{download_from_s3, parse_s3_id, upload_to_s3};
 
 #[instrument(skip_all, fields(job_id = %job.job_id))]
-async fn job_processing(job: Job) {
+async fn job_processing(
+  job: Job,
+  pool_data: apalis::prelude::Data<
+    common::infra::database::Pool<common::infra::database::Postgres>,
+  >,
+  s3_data: apalis::prelude::Data<common::infra::s3::config::S3Instance>,
+) {
   info!("Processing job");
 
-  let s3 = init_s3_instance();
-  let pool = match create_pool_from_env().await {
-    Ok(p) => p,
-    Err(e) => {
-      error!("Failed to create database pool: {}", e);
-      return;
-    }
-  };
+  let pool = &*pool_data;
+  let s3 = &*s3_data;
 
   let request = query("SELECT file_type FROM datasources WHERE s3_id = $1")
     .bind(&job.datasource_id)
-    .fetch_one(&pool)
+    .fetch_one(pool)
     .await;
 
   let file_type: DatasourceType = match request {
@@ -56,12 +56,12 @@ async fn job_processing(job: Job) {
   }
 }
 
-async fn csv_processing(job: Job, s3: S3Instance, pool: Pool<Postgres>) {
+async fn csv_processing(job: Job, s3: &S3Instance, pool: &Pool<Postgres>) {
   let csv_bytes = match download_from_s3(&s3, &job.datasource_id).await {
     Ok(bytes) => bytes,
     Err(e) => {
       error!("Failed to download from S3: {}", e);
-      let _ = update_job_status(&pool, &job.job_id, "error").await;
+      let _ = update_job_status(pool, &job.job_id, "error").await;
       return;
     }
   };
@@ -70,7 +70,7 @@ async fn csv_processing(job: Job, s3: S3Instance, pool: Pool<Postgres>) {
     Ok(t) => t,
     Err(e) => {
       error!("Failed to parse S3 ID: {}", e);
-      let _ = update_job_status(&pool, &job.job_id, "error").await;
+      let _ = update_job_status(pool, &job.job_id, "error").await;
       return;
     }
   };
@@ -84,7 +84,7 @@ async fn csv_processing(job: Job, s3: S3Instance, pool: Pool<Postgres>) {
       Ok(filtered) => current_bytes = filtered,
       Err(e) => {
         error!("Operation failed for job {}: {}", job.job_id, e);
-        let _ = update_job_status(&pool, &job.job_id, "error").await;
+        let _ = update_job_status(pool, &job.job_id, "error").await;
         return;
       }
     }
@@ -96,11 +96,11 @@ async fn csv_processing(job: Job, s3: S3Instance, pool: Pool<Postgres>) {
     .any(|op| matches!(op, Op::Aggregate { .. }));
   let ext = if is_aggregate { "json" } else { "csv" };
 
-  let new_s3_id = match upload_to_s3(&s3, &current_bytes, &group_uuid, ext).await {
+  let new_s3_id = match upload_to_s3(s3, &current_bytes, &group_uuid, ext).await {
     Ok(id) => id,
     Err(e) => {
       error!("Failed to upload to S3: {}", e);
-      let _ = update_job_status(&pool, &job.job_id, "error").await;
+      let _ = update_job_status(pool, &job.job_id, "error").await;
       return;
     }
   };
@@ -115,7 +115,7 @@ async fn csv_processing(job: Job, s3: S3Instance, pool: Pool<Postgres>) {
   };
 
   match create_datasource_from_s3(
-    &pool,
+    pool,
     &new_s3_id,
     &base_name,
     &group_uuid,
@@ -126,13 +126,13 @@ async fn csv_processing(job: Job, s3: S3Instance, pool: Pool<Postgres>) {
   {
     Ok(new_id) => {
       info!("Datasource created with ID: {}", new_id);
-      if let Err(e) = update_job_result(&pool, &job.job_id, &new_id).await {
+      if let Err(e) = update_job_result(pool, &job.job_id, &new_id).await {
         error!("Failed to update job result: {}", e);
       }
     }
     Err(e) => {
       error!("Failed to create datasource: {}", e);
-      let _ = update_job_status(&pool, &job.job_id, "error").await;
+      let _ = update_job_status(pool, &job.job_id, "error").await;
     }
   }
 }
@@ -161,7 +161,7 @@ async fn shutdown_signal() {
   }
 }
 
-async fn json_processing(job: Job, s3: S3Instance, pool: Pool<Postgres>) {
+async fn json_processing(job: Job, s3: &S3Instance, pool: &Pool<Postgres>) {
   println!("JSON Processing");
   for op in &job.pipeline {
     match op {
@@ -181,11 +181,18 @@ async fn main() {
   init_logging();
   info!("Starting worker...");
 
+  // Initialize once on startup
+  let pool = create_pool_from_env()
+    .await
+    .expect("Failed to create DB pool");
+  let s3 = init_s3_instance();
   let storage: RedisStorage<Job> = get_queue_storage().await;
 
   let monitor = Monitor::new().register(
     WorkerBuilder::new("worker")
       .concurrency(2)
+      .data(pool)
+      .data(s3)
       .backend(storage)
       .build_fn(job_processing),
   );
