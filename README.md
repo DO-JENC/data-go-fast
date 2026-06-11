@@ -20,3 +20,11 @@
 
 ### 🔄 How it works
 When a user uploads a dataset, the **`server`** streams it to **Garage S3**, logs the metadata in **PostgreSQL**, and pushes a job to **Redis**. The **`worker`** picks up the job from Redis, downloads the raw data from S3, executes the pipeline operation, uploads the result back to S3, and creates a new datasource entry in the database.
+
+
+
+## 👷👷‍♀️ Contributors
+- Nadia LAHYA ([@nadouulh](https://github.com/nadouulh))
+- Charlotte LEWIS ([@c-r-lewis](https://github.com/c-r-lewis))
+- Jessy LATMI ([@JyVers](https://github.com/JyVers))
+- Eliott BASSIER ([@beliott](https://github.com/beliott))
