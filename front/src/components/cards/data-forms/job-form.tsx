@@ -200,7 +200,8 @@ export default function JobForm({
           <div className="flex gap-1">
             <Button
               type="button"
-              className="bg-[#8828ad] text-white shadow-sm transition-all hover:bg-[#8828ad]/90 active:scale-[0.98]"
+              variant={"outline"}
+              className="hover:bg-[#8828ad] hover:text-white border-[#8828ad] text-[#8828ad] shadow-sm transition-all active:scale-[0.98]"
               size="xs"
               onClick={() => setFilterOpen(true)}
             >
@@ -209,7 +210,7 @@ export default function JobForm({
             <Button
               type="button"
               variant="outline"
-              className="border-[#8828ad] text-[#8828ad] shadow-sm transition-all hover:bg-[#8828ad]/10 active:scale-[0.98]"
+              className="hover:bg-[#8828ad] hover:text-white border-[#8828ad] text-[#8828ad] shadow-sm transition-all active:scale-[0.98]"
               size="xs"
               onClick={() => setAggOpen(true)}
             >
@@ -218,7 +219,7 @@ export default function JobForm({
             <Button
               type="button"
               variant="outline"
-              className="border-emerald-600 text-emerald-700 shadow-sm transition-all hover:bg-emerald-50 active:scale-[0.98]"
+              className="hover:bg-[#8828ad] hover:text-white border-[#8828ad] text-[#8828ad] shadow-sm transition-all active:scale-[0.98]"
               size="xs"
               onClick={() => setGroupByOpen(true)}
             >
