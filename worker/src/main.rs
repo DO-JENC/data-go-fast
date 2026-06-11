@@ -4,6 +4,7 @@ mod filter;
 mod group_by;
 mod ingest;
 
+use crate::aggregate::json_aggregate;
 use crate::filter::filter_json;
 use apalis::prelude::*;
 use apalis_redis::RedisStorage;
