@@ -1,43 +1,48 @@
 erDiagram
-    User {
+    users {
         UUID id
         string email
         string hash_password
     }
-    User }o--o{ Group : belongs-to
-    Group {
+    users }o--o{ groups : belongs-to
+    groups {
         UUID id
         string name
     }
 
-    Datasource {
+    datasources {
         UUID id
         string S3ID
         string name
         ENUM type
         float size
         date created_at
+        UUID group_id
     }
-    Datasource ||--|| UUID-CSV-DT-1 : references-CSV
-    UUID-CSV-DT-1{
-        int value1
-        string value2
-        bool value3
-    }
-    Datasource ||--|| UUID-CSV-DT-2 : references-CSV
-    UUID-CSV-DT-2{
-    }
-    JSONTable{
+    
+    json_table{
+        SERIAL id
         JSONB document
+        
     }
-    JSONTable ||--|o Datasource : references-JSON
-    Datasource ||--o{ Group : property-of
+    json_table ||--|o datasources : references-JSON
+    datasources ||--o{ groups : property-of
 
-    Job {
+    jobs {
         UUID id
         string name
         JSONB pipeline
-        ENUM status
+        ENUM job_status
 
     }
-    Job ||--o{ Datasource : related-to
+    jobs }o--o{ datasources : related-to
+    jobs ||--|o datasources : result_datasource
+
+    refresh_tokens {
+        UUID id
+        token_hash VARCHAR(255)
+        expires_at TIMESTAMP
+        created_at TIMESTAMP
+    }
+    refresh_tokens ||--O{ users : associated_to
+    
