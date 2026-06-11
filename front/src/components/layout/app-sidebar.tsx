@@ -311,7 +311,7 @@ export function AppSidebar() {
           {mode === "join" ? (
             <div className="space-y-3">
               <Input
-              className="h-min!"
+                className="h-min!"
                 placeholder="Search groups…"
                 value={searchQuery}
                 onChange={(e) => {
