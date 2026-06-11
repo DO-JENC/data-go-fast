@@ -134,6 +134,40 @@ pub async fn json_group_by(
     }
   };
 
+  let check_exists_query = format!(
+    "SELECT bool_or(doc ? '{}') AS has_by, bool_or(doc ? '{}') AS has_column \
+     FROM json_table, jsonb_array_elements(document) AS doc \
+     WHERE datasource_id = $1",
+    by, column
+  );
+
+  let exists_row = match sqlx::query(&check_exists_query)
+    .bind(datasource_id)
+    .fetch_one(pool)
+    .await
+  {
+    Ok(row) => row,
+    Err(e) => {
+      eprintln!("Column existence check failed: {}", e);
+      let _ = update_job_status(pool, &job.job_id, "error").await;
+      return;
+    }
+  };
+
+  let has_by: Option<bool> = exists_row.try_get("has_by").unwrap_or(Some(false));
+  let has_column: Option<bool> = exists_row.try_get("has_column").unwrap_or(Some(false));
+
+  if has_by != Some(true) {
+    eprintln!("Column '{}' not found in JSON data", by);
+    let _ = update_job_status(pool, &job.job_id, "error").await;
+    return;
+  }
+  if has_column != Some(true) {
+    eprintln!("Column '{}' not found in JSON data", column);
+    let _ = update_job_status(pool, &job.job_id, "error").await;
+    return;
+  }
+
   let func_lower = function.to_lowercase();
   let sql_func = match func_lower.as_str() {
     "avg" => "AVG",
