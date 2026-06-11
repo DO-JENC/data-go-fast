@@ -7,7 +7,7 @@ mod ingest;
 use crate::filter::filter_json;
 use apalis::prelude::*;
 use apalis_redis::RedisStorage;
-use common::infra::database::config::create_pool_from_env;
+use common::infra::database::config::create_pool_with_options;
 use common::infra::database::datasource::{DatasourceType, create_datasource_from_s3};
 use common::infra::database::job::{update_job_result, update_job_status};
 use common::infra::s3::config::{S3Instance, init_s3_instance};
@@ -23,34 +23,30 @@ use crate::ingest::ingest_json;
 use common::infra::s3::utils::{download_from_s3, parse_s3_id, upload_to_s3};
 
 #[instrument(skip_all, fields(job_id = %job.job_id))]
-async fn job_processing(
-  job: Job,
-  pool_data: apalis::prelude::Data<
-    common::infra::database::Pool<common::infra::database::Postgres>,
-  >,
-  s3_data: apalis::prelude::Data<common::infra::s3::config::S3Instance>,
-) {
-  info!("Processing job");
-
+async fn job_processing(job: Job, pool_data: Data<Pool<Postgres>>, s3_data: Data<S3Instance>) {
   let pool = &*pool_data;
   let s3 = &*s3_data;
 
-  let request = query("SELECT id, file_type FROM datasources WHERE s3_id = $1")
-    .bind(&job.datasource_id)
-    .fetch_one(pool)
-    .await;
+  // Quick lookup, connection released immediately after
+  let (datasource_id, file_type): (Uuid, DatasourceType) = {
+    let request = query("SELECT id, file_type FROM datasources WHERE s3_id = $1")
+      .bind(&job.datasource_id)
+      .fetch_one(pool)
+      .await;
 
-  let (datasource_id, file_type): (Uuid, DatasourceType) = match request {
-    Ok(response) => (response.get("id"), response.get("file_type")),
-    Err(e) => {
-      eprintln!("Failed to get datasource file type: {}", e);
-      let _ = update_job_status(pool, &job.job_id, "error").await;
-      return;
+    match request {
+      Ok(response) => (response.get("id"), response.get("file_type")),
+      Err(e) => {
+        error!("Failed to get datasource file type: {}", e);
+        let _ = update_job_status(pool, &job.job_id, "error").await;
+        return;
+      }
     }
   };
 
   let _ = update_job_status(pool, &job.job_id, "running").await;
 
+  // Heavy S3 work happens with NO connection held
   match file_type {
     DatasourceType::Csv => csv_processing(job, s3, pool).await,
     DatasourceType::Json => json_processing(job, s3, pool, datasource_id).await,
@@ -183,7 +179,7 @@ async fn main() {
   info!("Starting worker...");
 
   // Initialize once on startup
-  let pool = create_pool_from_env()
+  let pool = create_pool_with_options(1)
     .await
     .expect("Failed to create DB pool");
   let s3 = init_s3_instance();
@@ -191,7 +187,7 @@ async fn main() {
 
   let monitor = Monitor::new().register(
     WorkerBuilder::new("worker")
-      .concurrency(2)
+      .concurrency(1)
       .data(pool)
       .data(s3)
       .backend(storage)

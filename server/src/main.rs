@@ -9,7 +9,7 @@ use std::env;
 use crate::api::router::router as app_router;
 use crate::infra::redis::config::init_redis_connection;
 use apalis_redis::RedisStorage;
-use common::infra::database::config::create_pool_from_env;
+use common::infra::database::config::create_pool_with_options;
 use common::infra::s3::config::{S3Instance, init_s3_instance};
 use common::logs::init_logging;
 use common::queue::models::Job;
@@ -30,7 +30,7 @@ pub struct AppState {
 async fn main() {
   init_logging();
 
-  let pool: Pool<Postgres> = create_pool_from_env().await.unwrap();
+  let pool: Pool<Postgres> = create_pool_with_options(2).await.unwrap();
   let s3_instance: S3Instance = init_s3_instance();
   let storage: RedisStorage<Job> = get_queue_storage().await;
   let redis_connection = init_redis_connection()
