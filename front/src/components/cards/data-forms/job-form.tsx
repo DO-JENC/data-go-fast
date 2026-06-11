@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useDatasources } from "@/hooks/use-datasources"
+import { api } from "@/lib/api"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -56,12 +57,7 @@ export default function JobForm({
         value: tryParseJson(s.value),
       }))
 
-      const res = await fetch("/api/jobs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, datasource_id: datasourceId, pipeline }),
-      })
-      if (!res.ok) throw new Error(await res.text())
+      await api.post("/jobs", { name, datasource_id: datasourceId, pipeline })
 
       toast.success("Job created successfully")
       onJobCreated?.(datasourceId)

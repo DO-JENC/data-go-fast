@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { api } from "@/lib/api"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -14,7 +15,7 @@ export default function DatasourceForm({
 
   const isCsv = file?.name.toLowerCase().endsWith(".csv")
 
-  async function handleSubmit(e: React.SubmitEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!file) return
 
@@ -35,8 +36,7 @@ export default function DatasourceForm({
         }),
       )
 
-      const res = await fetch("/api/datasources", { method: "POST", body: fd })
-      if (!res.ok) throw new Error(await res.text())
+      await api.post("/datasources", fd)
 
       toast.success("Datasource uploaded successfully")
       onRefresh?.()
