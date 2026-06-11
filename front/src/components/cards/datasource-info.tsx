@@ -119,9 +119,9 @@ export default function DatasourceInfo({
         <span className="truncate">{ds.id}</span>
         <span className="text-muted-foreground">S3 ID</span>
         <span className="truncate">{ds.s3_id}</span>
-        <span className="text-muted-foreground">Créé le</span>
+        <span className="text-muted-foreground">Date of creation</span>
         <span>{formatDate(ds.created_at)}</span>
-        <span className="text-muted-foreground">Groupe</span>
+        <span className="text-muted-foreground">Group ID</span>
         <span className="truncate">{ds.group_id ?? "—"}</span>
       </CardContent>
     </Card>
