@@ -210,7 +210,7 @@ pub async fn filter_json(
     }
   };
 
-  let new_s3_id = match upload_to_s3(s3, &current_bytes, &group_uuid, "csv").await {
+  let new_s3_id = match upload_to_s3(s3, &current_bytes, &group_uuid, "json").await {
     Ok(id) => id,
     Err(e) => {
       eprintln!("Failed to upload to S3: {}", e);
