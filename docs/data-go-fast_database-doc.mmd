@@ -12,18 +12,18 @@ erDiagram
 
     datasources {
         UUID id
-        string S3ID
+        string s3_id
         string name
-        ENUM type
+        ENUM file_type
         float size
         date created_at
         UUID group_id
     }
-    
+
     json_table{
         SERIAL id
         JSONB document
-        
+
     }
     json_table ||--|o datasources : references-JSON
     datasources ||--o{ groups : property-of
@@ -32,7 +32,8 @@ erDiagram
         UUID id
         string name
         JSONB pipeline
-        ENUM job_status
+        ENUM status
+        UUID result_datasource_id
 
     }
     jobs }o--o{ datasources : related-to
@@ -45,4 +46,3 @@ erDiagram
         created_at TIMESTAMP
     }
     refresh_tokens ||--O{ users : associated_to
-    
