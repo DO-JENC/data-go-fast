@@ -3,7 +3,6 @@ mod execute;
 mod filter;
 mod group_by;
 mod ingest;
-mod utils;
 
 use crate::filter::filter_json;
 use apalis::prelude::*;
@@ -21,7 +20,7 @@ use uuid::Uuid;
 
 use crate::execute::Operation;
 use crate::ingest::ingest_json;
-use crate::utils::{download_from_s3, parse_s3_id, upload_to_s3};
+use common::infra::s3::utils::{download_from_s3, parse_s3_id, upload_to_s3};
 
 #[instrument(skip_all, fields(job_id = %job.job_id))]
 async fn job_processing(

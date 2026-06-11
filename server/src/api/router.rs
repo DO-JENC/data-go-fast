@@ -34,6 +34,7 @@ fn datasources_router(state: AppState) -> Router<AppState> {
   Router::new()
     .route("/", get(get_all_datasources))
     .route("/{id}", get(get_datasource_by_id))
+    .route("/{id}/download", get(download_datasource_by_id))
     .route("/", post(csv_ingestion_handler))
     .route("/{id}", delete(delete_datasource_by_id))
     .layer(DefaultBodyLimit::max(FILE_SIZE_LIMIT))

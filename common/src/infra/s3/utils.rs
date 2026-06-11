@@ -1,6 +1,7 @@
-use common::infra::s3::config::S3Instance;
 use s3::Bucket;
 use uuid::Uuid;
+
+use crate::infra::s3::config::S3Instance;
 
 // Download raw bytes from S3 (format: "s3://bucket/group-uuid/file-uuid.ext")
 pub async fn download_from_s3(s3: &S3Instance, s3_id: &str) -> Result<Vec<u8>, String> {

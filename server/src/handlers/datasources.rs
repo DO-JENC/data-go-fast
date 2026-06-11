@@ -8,7 +8,10 @@ use axum::{
   response::IntoResponse,
 };
 use common::{
-  infra::database::datasource::{Datasource, DatasourceType, create_datasource_from_s3},
+  infra::{
+    database::datasource::{Datasource, DatasourceType, create_datasource_from_s3},
+    s3::utils::download_from_s3,
+  },
   queue::models::{Job, Op, Pipeline},
 };
 use csv::Reader;
@@ -122,6 +125,36 @@ pub async fn get_datasource_by_id(
       Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
     }
   }
+}
+
+pub async fn download_datasource_by_id(
+  State(state): State<AppState>,
+  Path(id): Path<Uuid>,
+) -> Result<Vec<u8>, (StatusCode, String)> {
+  // TODO: authentication and authorization checks should be implemented here
+
+  let datasource = match fetch_datasource(&state.pool, &id).await {
+    Ok(Some(dt)) => dt,
+    Ok(None) => {
+      warn!("Datasource not found: {}", id);
+      return Err((StatusCode::NOT_FOUND, "Datasource not found".to_string()));
+    }
+    Err(e) => {
+      error!("Failed to fetch datasource {}: {:?}", id, e);
+      return Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
+    }
+  };
+
+  let datasource_bytes: Vec<u8> =
+    match download_from_s3(&state.s3_instance, &datasource.s3_id).await {
+      Ok(bytes) => bytes,
+      Err(e) => {
+        error!("Failed to download datasource {}: {:?}", id, e);
+        return Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
+      }
+    };
+
+  Ok(datasource_bytes)
 }
 
 struct Metadata {
