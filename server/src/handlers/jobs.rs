@@ -3,7 +3,7 @@ use apalis_core::request::Parts;
 use apalis_redis::{RedisContext, RedisStorage};
 use axum::{
   Json,
-  extract::{Path, State},
+  extract::{Path, Query, State},
   http::StatusCode,
   response::IntoResponse,
 };
@@ -123,11 +123,19 @@ pub async fn get_job_by_id_handler(
   Ok(Json(job))
 }
 
+#[derive(Deserialize)]
+pub struct ListJobsQuery {
+  pub group_id: Option<Uuid>,
+}
+
 pub async fn list_jobs_handler(
   State(state): State<AppState>,
+  Query(query): Query<ListJobsQuery>,
 ) -> Result<Json<Vec<Job>>, (StatusCode, String)> {
-  // TODO: use the connected user's group when authentication is implemented
-  let group_id: Uuid = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
+  let group_id = match query.group_id {
+    Some(id) => id,
+    None => return Ok(Json(vec![])),
+  };
 
   let jobs = common::infra::database::job::list_jobs_by_group(&state.pool, &group_id)
     .await

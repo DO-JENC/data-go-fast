@@ -311,6 +311,7 @@ export function AppSidebar() {
           {mode === "join" ? (
             <div className="space-y-3">
               <Input
+              className="h-min!"
                 placeholder="Search groups…"
                 value={searchQuery}
                 onChange={(e) => {
@@ -362,6 +363,7 @@ export function AppSidebar() {
           ) : (
             <div className="space-y-3">
               <Input
+                className="h-min!"
                 placeholder="Group name"
                 value={newGroupName}
                 onChange={(e) => setNewGroupName(e.target.value)}
