@@ -82,8 +82,8 @@ export default function DatasourceInfo({
                 >
                   <Trash2 className="size-4" />
                 </AlertDialogTrigger>
-                <AlertDialogContent className="border-2 border-orange-500 ring-0 bg-white gap-2">
-                  <AlertDialogHeader>
+                <AlertDialogContent className="border-2 ring-0 bg-white gap-2">
+                  <AlertDialogHeader className="flex flex-column items-center!">
                     <AlertDialogTitle>
                       Are you sure you want to delete this datasource?
                     </AlertDialogTitle>
@@ -91,7 +91,7 @@ export default function DatasourceInfo({
                       This action cannot be undone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  <AlertDialogFooter>
+                  <AlertDialogFooter className="flex justify-evenly!">
                     <AlertDialogCancel onClick={(e) => e.stopPropagation()}>
                       Cancel
                     </AlertDialogCancel>
