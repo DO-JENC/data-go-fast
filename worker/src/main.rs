@@ -45,12 +45,12 @@ async fn job_processing(
     Ok(response) => (response.get("id"), response.get("file_type")),
     Err(e) => {
       eprintln!("Failed to get datasource file type: {}", e);
-      let _ = update_job_status(&pool, &job.job_id, "error").await;
+      let _ = update_job_status(pool, &job.job_id, "error").await;
       return;
     }
   };
 
-  let _ = update_job_status(&pool, &job.job_id, "running").await;
+  let _ = update_job_status(pool, &job.job_id, "running").await;
 
   match file_type {
     DatasourceType::Csv => csv_processing(job, s3, pool).await,
@@ -168,10 +168,10 @@ async fn json_processing(job: Job, s3: &S3Instance, pool: &Pool<Postgres>, datas
   for op in &job.pipeline {
     match op {
       Op::Ingest { .. } => {
-        ingest_json(&pool, s3, &job).await;
+        ingest_json(pool, s3, &job).await;
         return;
       }
-      Op::Filter { .. } => filter_json(&pool, &s3, &job, &datasource_id, op).await,
+      Op::Filter { .. } => filter_json(pool, s3, &job, &datasource_id, op).await,
       Op::Aggregate { .. } => println!("JSON Aggregating not yet implemented"),
       Op::GroupBy { .. } => println!("JSON GroupBying not yet implemented"),
     }
