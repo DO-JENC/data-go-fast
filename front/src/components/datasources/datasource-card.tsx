@@ -10,12 +10,14 @@ export default function DatasourceCard({
   item,
   type,
   onDelete,
+  onDownload,
   onRefresh,
   onJobCreated,
 }: {
   item: Datasource | Job | string | null
   type: "datasource" | "job" | "form" | null
   onDelete?: (id: string) => Promise<boolean>
+  onDownload?: (id: string) => Promise<void>
   onRefresh?: () => void
   onJobCreated?: (datasourceId: string) => void
 }) {
@@ -37,6 +39,7 @@ export default function DatasourceCard({
       <DatasourceInfo
         item={item as Datasource}
         onDelete={onDelete}
+        onDownload={onDownload}
         onRefresh={onRefresh}
       />
     )

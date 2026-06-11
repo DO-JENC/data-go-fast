@@ -6,7 +6,7 @@ import type { Job } from "@/types/job"
 import { useState } from "react"
 
 export default function Datasources() {
-  const { removeDatasource } = useDatasources()
+  const { removeDatasource, downloadDatasource } = useDatasources()
   const [selected, setSelected] = useState<{
     item: Datasource | Job | string
     type: "datasource" | "job" | "form"
@@ -57,6 +57,7 @@ export default function Datasources() {
           item={selected?.item ?? null}
           type={selected?.type ?? null}
           onDelete={selected?.type === "datasource" ? handleDelete : undefined}
+          onDownload={downloadDatasource}
           onRefresh={handleRefresh}
           onJobCreated={handleJobCreated}
         />

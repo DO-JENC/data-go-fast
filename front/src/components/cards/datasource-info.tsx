@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Datasource } from "@/types/datasource"
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
-import { FileJson, FileSpreadsheet, Trash2 } from "lucide-react"
+import { Download, FileJson, FileSpreadsheet, Trash2 } from "lucide-react"
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—"
@@ -34,10 +34,12 @@ function formatSizeMB(mb: number): string {
 export default function DatasourceInfo({
   item,
   onDelete,
+  onDownload,
   onRefresh,
 }: {
   item: Datasource
   onDelete?: (id: string) => Promise<boolean>
+  onDownload?: (id: string) => Promise<void>
   onRefresh?: () => void
 }) {
   const ds = item as Datasource
@@ -68,6 +70,7 @@ export default function DatasourceInfo({
                 {ds.file_type}
               </span>
             )}
+            <Download onClick={() => onDownload?.(ds.id)} />
             {onDelete && (
               <AlertDialog>
                 <AlertDialogTrigger
