@@ -1,4 +1,5 @@
 import type { Group } from "@/types/group"
+import type { Member } from "@/types/member"
 import { createContext } from "react"
 
 export interface GroupContextType {
@@ -21,6 +22,8 @@ export interface GroupContextType {
 
   // Search (groups user doesn't belong to)
   searchAvailableGroups: (query: string) => Promise<Group[]>
+
+  fetchGroupMembers: (groupId: string) => Promise<Member[]>
 }
 
 export const GroupContext = createContext<GroupContextType | undefined>(

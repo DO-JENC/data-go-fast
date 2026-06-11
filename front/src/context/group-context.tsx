@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/use-auth"
 import { api } from "@/lib/api"
 import type { Group } from "@/types/group"
+import type { Member } from "@/types/member"
 import type { ReactNode } from "react"
 import { useCallback, useEffect, useState } from "react"
 import { GroupContext } from "./group-context-base"
@@ -74,6 +75,17 @@ export function GroupProvider({ children }: { children: ReactNode }) {
     [getGroups],
   )
 
+  const fetchGroupMembers = useCallback(
+    async (groupId: string): Promise<Member[]> => {
+      try {
+        return await api.get<Member[]>(`/groups/${groupId}/members`)
+      } catch {
+        return []
+      }
+    },
+    [],
+  )
+
   const createGroup = useCallback(
     async (name: string): Promise<Group> => {
       const group = await api.post<Group>("/groups", { name })
@@ -129,6 +141,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
         joinGroup,
         createGroup,
         searchAvailableGroups,
+        fetchGroupMembers,
       }}
     >
       {children}
