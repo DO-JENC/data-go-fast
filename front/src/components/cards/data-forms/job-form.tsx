@@ -390,13 +390,13 @@ export default function JobForm({
                   {AGGREGATE_FUNCTIONS.map((fn) => (
                     <label
                       key={fn}
-                      className="flex cursor-pointer items-center gap-1 text-xs"
+                      className="flex cursor-pointer self-center  gap-1 text-xs"
                     >
                       <input
                         type="checkbox"
                         checked={aggFunctions.includes(fn)}
                         onChange={() => toggleFunction(fn)}
-                        className="size-3.5 rounded border-gray-300 text-[#8828ad] accent-[#8828ad]"
+                        className="size-3.5 rounded border-gray-300 text-[#8828ad] accent-[#8828ad] m-1"
                       />
                       {fn}
                     </label>
