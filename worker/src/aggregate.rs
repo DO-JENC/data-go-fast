@@ -173,9 +173,6 @@ pub async fn json_aggregate(
     select_parts.join(", ")
   );
 
-  println!("QUERY: {:?}", query);
-  println!("datasource_id: {:?}", datasource_id);
-
   let row = match sqlx::query(&query)
     .bind(datasource_id)
     .fetch_one(pool)
@@ -188,8 +185,6 @@ pub async fn json_aggregate(
       return;
     }
   };
-
-  println!("row:, {:?}", row);
 
   // Build result: { "Rating": { "avg": 3.41, "sum": 1126.0 }, "Year": { ... } }
   let mut result: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
@@ -213,7 +208,6 @@ pub async fn json_aggregate(
   }
 
   let json_result = serde_json::Value::Object(result);
-  println!("{}", json_result);
 
   let current_bytes: Vec<u8> = match serde_json::to_vec(&json_result) {
     Ok(current_bytes) => current_bytes,
