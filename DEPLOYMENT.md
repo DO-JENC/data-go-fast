@@ -61,7 +61,7 @@ clever env set BUCKET_NAME "data-go-fast" --alias backend
 
 Make sure to create a bucket called "data-go-fast" in your cellar addon.
 
-![alt text](cellar-bucket-creation.png)
+![alt text](./docs/cellar-bucket-creation.png)
 
 #### Security
 ```bash
