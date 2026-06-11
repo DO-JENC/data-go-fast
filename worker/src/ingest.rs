@@ -5,7 +5,7 @@ use serde_json::Value;
 use sqlx::{Pool, Postgres, Row, query};
 use uuid::Uuid;
 
-use crate::utils::download_from_s3;
+use common::infra::s3::utils::download_from_s3;
 
 pub async fn ingest_json(pool: &Pool<Postgres>, s3: &S3Instance, job: &Job) {
   println!("Ingestion de fichier:");
