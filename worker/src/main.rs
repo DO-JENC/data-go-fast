@@ -36,6 +36,15 @@ async fn job_processing(
   let pool = &*pool_data;
   let s3 = &*s3_data;
 
+  let is_ingestion = job
+    .pipeline
+    .iter()
+    .any(|op| matches!(op, Op::Ingest { .. }));
+  if is_ingestion {
+    let _ = update_job_status(pool, &job.job_id, "done").await;
+    return;
+  }
+
   let request = query("SELECT id, file_type FROM datasources WHERE s3_id = $1")
     .bind(&job.datasource_id)
     .fetch_one(pool)
