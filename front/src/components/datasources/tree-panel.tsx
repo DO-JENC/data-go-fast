@@ -86,7 +86,7 @@ export default function TreePanel({
           Tree Structure
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-1">
+      <CardContent className="space-y-1 overflow-scroll">
         {loading && <p className="text-sm text-muted-foreground">Loading...</p>}
         {error && (
           <p className="text-sm text-red-500">Unable to load : {error}</p>
