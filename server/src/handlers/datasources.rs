@@ -17,7 +17,7 @@ use common::{
 use csv::Reader;
 use s3::{Bucket, error::S3Error};
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{json, Value};
 use sqlx::{Error, Pool, Postgres, Row, query};
 use std::str::FromStr;
 use tracing::{error, info, instrument, warn};
@@ -367,7 +367,7 @@ pub async fn csv_ingestion_handler(
     Ok(val) => val,
     Err(e) => {
       warn!("Failed to parse multipart: {:?}", e);
-      return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
+      return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)).into_response();
     }
   };
 
@@ -377,7 +377,8 @@ pub async fn csv_ingestion_handler(
       return (
         StatusCode::BAD_REQUEST,
         format!("Error creating pipeline: {}", e),
-      );
+      )
+        .into_response();
     }
   };
   info!("Validating file: {} (size: {:.2} MB)", file_name, file_size);
@@ -385,7 +386,7 @@ pub async fn csv_ingestion_handler(
   // Make sure file is a correct format
   if let Err(e) = validate_file_format(&file_content, &metadata.file_type) {
     warn!("File validation failed for {}: {}", file_name, e);
-    return (StatusCode::UNSUPPORTED_MEDIA_TYPE, e);
+    return (StatusCode::UNSUPPORTED_MEDIA_TYPE, e).into_response();
   }
 
   if metadata.file_type == DatasourceType::Csv && !metadata.header {
@@ -393,7 +394,8 @@ pub async fn csv_ingestion_handler(
     return (
       StatusCode::BAD_REQUEST,
       "Headerless CSV files are not yet supported".to_string(),
-    );
+    )
+      .into_response();
   }
 
   let group: Uuid = metadata.group_id;
@@ -419,7 +421,7 @@ pub async fn csv_ingestion_handler(
     }
     Err(e) => {
       error!("Failed to upload file to S3: {:?}", e);
-      return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
+      return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)).into_response();
     }
   };
 
@@ -436,7 +438,7 @@ pub async fn csv_ingestion_handler(
   .await;
 
   if let Err(e) = datasource_to_postgres {
-    return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
+    return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)).into_response();
   };
 
   // Define job name
@@ -454,7 +456,7 @@ pub async fn csv_ingestion_handler(
   .await;
 
   if let Err(e) = ingest_job_to_redis {
-    return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
+    return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)).into_response();
   };
 
   // Add ingest job to Postgres
@@ -462,17 +464,21 @@ pub async fn csv_ingestion_handler(
     add_job_to_postgres(&pool, &pipeline, &job_uuid, &job_name, &file_uuid).await;
 
   if let Err(e) = ingest_job_to_postgres {
-    return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e));
+    return (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)).into_response();
   };
 
   match datasource_to_postgres {
     Ok(_) => {
       info!("Datasource {} added to database", file_uuid);
-      (StatusCode::OK, "Upload file successful.".to_string())
+      (
+        StatusCode::OK,
+        Json(json!({ "message": "Upload file successful." })),
+      )
+        .into_response()
     }
     Err(e) => {
       error!("Failed to add datasource to database: {:?}", e);
-      (StatusCode::BAD_REQUEST, format!("Error: {:?}", e))
+      (StatusCode::BAD_REQUEST, format!("Error: {:?}", e)).into_response()
     }
   }
 }

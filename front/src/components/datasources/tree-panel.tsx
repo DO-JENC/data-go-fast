@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useDatasources } from "@/hooks/use-datasources"
+import { useGroups } from "@/hooks/use-groups"
 import { useJobs } from "@/hooks/use-jobs"
 import { cn } from "@/lib/utils"
 import type { Datasource } from "@/types/datasource"
@@ -28,6 +29,7 @@ export default function TreePanel({
   revealDatasourceId?: string | null
   onRevealHandled?: () => void
 }) {
+  const { currentGroup } = useGroups()
   const {
     datasources,
     loading: dsLoading,
@@ -39,7 +41,7 @@ export default function TreePanel({
     loading: jobsLoading,
     error: jobsError,
     refreshJobs,
-  } = useJobs()
+  } = useJobs(currentGroup?.id)
   const [openFolders, setOpenFolders] = useState<Set<string>>(new Set())
 
   useEffect(() => {
