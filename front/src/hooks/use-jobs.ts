@@ -20,7 +20,8 @@ export function useJobs() {
 
   useEffect(() => {
     const controller = new AbortController()
-    api.get<Job[]>("/jobs", { signal: controller.signal })
+    api
+      .get<Job[]>("/jobs", { signal: controller.signal })
       .then((data) => setJobs(data))
       .catch((err) => {
         if (err.name !== "AbortError")

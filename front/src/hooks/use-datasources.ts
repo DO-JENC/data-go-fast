@@ -12,9 +12,13 @@ export function useDatasources(initialPage = 1, limit = 10) {
   const [page, setPage] = useState(initialPage)
 
   async function fetchDatasources() {
+    if (!currentGroup?.id) return
     try {
-      const data = await api.get<Datasource[]>("/datasources")
-      setDatasources(data)
+      const data = await api.get<{ items: Datasource[]; total: number }>("/datasources", {
+        params: { group_id: currentGroup.id, limit: String(limit), offset: String((page - 1) * limit) }
+      })
+      setDatasources(data.items)
+      setTotal(data.total)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -23,16 +27,28 @@ export function useDatasources(initialPage = 1, limit = 10) {
   }
 
   useEffect(() => {
+    if (!currentGroup?.id) {
+      setLoading(false)
+      return
+    }
+
     const controller = new AbortController()
-    api.get<Datasource[]>("/datasources", { signal: controller.signal })
-      .then((data) => setDatasources(data))
+    api
+      .get<{ items: Datasource[]; total: number }>("/datasources", {
+        signal: controller.signal,
+        params: { group_id: currentGroup.id, limit: String(limit), offset: String((page - 1) * limit) }
+      })
+      .then((data) => {
+        setDatasources(data.items)
+        setTotal(data.total)
+      })
       .catch((err) => {
         if (err.name !== "AbortError")
           setError(err instanceof Error ? err.message : String(err))
       })
       .finally(() => setLoading(false))
     return () => controller.abort()
-  }, [])
+  }, [currentGroup?.id, page, limit])
 
   async function removeDatasource(id: string): Promise<boolean> {
     try {

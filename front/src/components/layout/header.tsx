@@ -27,7 +27,11 @@ export function Header() {
       <CContainer fluid>
         <div className="flex items-center gap-2 bg-background">
           <div id="sidebar-trigger-portal" />
-          <CHeaderBrand as={Link} to="/" className="flex items-center gap-3 no-underline! m-0">
+          <CHeaderBrand
+            as={Link}
+            to="/"
+            className="flex items-center gap-3 no-underline! m-0"
+          >
             <img src="/public/logo.png" alt="logo" className="max-h-10" />
             <span className="font-heading text-xl font-bold text-[#8828ad]">
               data-go-fast
