@@ -36,8 +36,8 @@ pub async fn job_processing(job: Job) {
     .fetch_one(&pool)
     .await;
 
-  let (_datasource_id, file_type): (Uuid, DatasourceType) = match request {
-    Ok(response) => (response.get("id"), response.get("file_type")),
+  let file_type: DatasourceType = match request {
+    Ok(response) => response.get("file_type"),
     Err(e) => {
       eprintln!("Failed to get datasource file type: {}", e);
       let _ = update_job_status(&pool, &job.job_id, "error").await;
