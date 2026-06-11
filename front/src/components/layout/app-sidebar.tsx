@@ -22,7 +22,14 @@ import { useAuth } from "@/hooks/use-auth"
 import { useGroups } from "@/hooks/use-groups"
 import { cn } from "@/lib/utils"
 import type { Group } from "@/types/group"
-import { Check, ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react"
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Loader2,
+  Plus,
+} from "lucide-react" // Added Eye icon
 import { useCallback, useEffect, useRef, useState } from "react"
 
 type DialogMode = "join" | "create"
@@ -40,11 +47,19 @@ export function AppSidebar() {
     joinGroup,
     createGroup,
     searchAvailableGroups,
+    fetchGroupMembers, // Extracted from our context update
   } = useGroups()
   const { user } = useAuth()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [mode, setMode] = useState<DialogMode>("join")
+
+  // Members Modal State
+  const [membersModalOpen, setMembersModalOpen] = useState(false)
+  const [selectedGroupForMembers, setSelectedGroupForMembers] =
+    useState<Group | null>(null)
+  const [groupMembers, setGroupMembers] = useState<any[]>([])
+  const [loadingMembers, setLoadingMembers] = useState(false)
 
   // Join mode state
   const [searchQuery, setSearchQuery] = useState("")
@@ -94,6 +109,17 @@ export function AppSidebar() {
   const handleOpenChange = (open: boolean) => {
     setDialogOpen(open)
     if (!open) resetDialog()
+  }
+
+  // Handle viewing group members
+  const handleViewMembers = async (e: React.MouseEvent, group: Group) => {
+    e.stopPropagation() // Prevents selecting/switching the group active state
+    setSelectedGroupForMembers(group)
+    setMembersModalOpen(true)
+    setLoadingMembers(true)
+    const members = await fetchGroupMembers(group.id)
+    setGroupMembers(members)
+    setLoadingMembers(false)
   }
 
   const handleJoin = async () => {
@@ -176,11 +202,14 @@ export function AppSidebar() {
                   </p>
                 ) : (
                   groups.map((group) => (
-                    <SidebarMenuItem key={group.id}>
+                    <SidebarMenuItem
+                      key={group.id}
+                      className="group/item relative"
+                    >
                       <button
                         onClick={() => selectGroup(group)}
                         className={cn(
-                          "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm transition-colors text-left",
+                          "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm transition-colors text-left pr-8",
                           currentGroup?.id === group.id
                             ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                             : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
@@ -189,8 +218,17 @@ export function AppSidebar() {
                         <span className="w-1.5 h-1.5 rounded-full bg-primary/60 flex-shrink-0" />
                         <span className="flex-1 truncate">{group.name}</span>
                         {currentGroup?.id === group.id && (
-                          <Check className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-purple)]" />
+                          <Check className="w-3.5 h-3.5 flex-shrink-0 text-[var(--color-purple)] mr-5" />
                         )}
+                      </button>
+
+                      {/* View Members Eye Button */}
+                      <button
+                        onClick={(e) => handleViewMembers(e, group)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-sidebar-border transition-all"
+                        title="View members"
+                      >
+                        <Eye color="black" className="w-3.5 h-3.5" />
                       </button>
                     </SidebarMenuItem>
                   ))
@@ -343,6 +381,46 @@ export function AppSidebar() {
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* View Members Overlay Dialog */}
+      <Dialog open={membersModalOpen} onOpenChange={setMembersModalOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{selectedGroupForMembers?.name} Members</DialogTitle>
+            <DialogDescription>
+              A list of users currently in this group.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-2 space-y-2 max-h-60 overflow-y-auto">
+            {loadingMembers ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : groupMembers.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No members found in this group.
+              </p>
+            ) : (
+              groupMembers.map((member, idx) => (
+                <div
+                  key={member.id ?? idx}
+                  className="flex items-center gap-3 px-3 py-2 border rounded-md bg-accent/20"
+                >
+                  <div className="w-6 h-6 rounded-full bg-primary/10 text-[10px] flex items-center justify-center font-semibold text-[var(--color-purple)]">
+                    {member.email
+                      ? member.email.slice(0, 2).toUpperCase()
+                      : "??"}
+                  </div>
+                  <span className="text-sm text-foreground truncate">
+                    {member.email}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </>
