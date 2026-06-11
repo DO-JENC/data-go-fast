@@ -6,6 +6,7 @@ mod ingest;
 
 use crate::aggregate::json_aggregate;
 use crate::filter::filter_json;
+use crate::group_by::json_group_by;
 use apalis::prelude::*;
 use apalis_redis::RedisStorage;
 use common::infra::database::config::create_pool_from_env;
@@ -36,15 +37,6 @@ async fn job_processing(
   let pool = &*pool_data;
   let s3 = &*s3_data;
 
-  let is_ingestion = job
-    .pipeline
-    .iter()
-    .any(|op| matches!(op, Op::Ingest { .. }));
-  if is_ingestion {
-    let _ = update_job_status(pool, &job.job_id, "done").await;
-    return;
-  }
-
   let request = query("SELECT id, file_type FROM datasources WHERE s3_id = $1")
     .bind(&job.datasource_id)
     .fetch_one(pool)
@@ -68,6 +60,15 @@ async fn job_processing(
 }
 
 async fn csv_processing(job: Job, s3: &S3Instance, pool: &Pool<Postgres>) {
+  let is_ingestion = job
+    .pipeline
+    .iter()
+    .any(|op| matches!(op, Op::Ingest { .. }));
+  if is_ingestion {
+    let _ = update_job_status(pool, &job.job_id, "done").await;
+    return;
+  }
+
   let csv_bytes = match download_from_s3(s3, &job.datasource_id).await {
     Ok(bytes) => bytes,
     Err(e) => {
@@ -181,7 +182,7 @@ async fn json_processing(job: Job, s3: &S3Instance, pool: &Pool<Postgres>, datas
       }
       Op::Filter { .. } => filter_json(pool, s3, &job, &datasource_id, op).await,
       Op::Aggregate { .. } => json_aggregate(pool, s3, &job, &datasource_id, op).await,
-      Op::GroupBy { .. } => println!("JSON GroupBying not yet implemented"),
+      Op::GroupBy { .. } => json_group_by(pool, s3, &job, &datasource_id, op).await,
     }
   }
 }
