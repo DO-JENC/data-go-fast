@@ -146,6 +146,37 @@ pub async fn json_aggregate(
     }
   };
 
+  // Validate that all requested columns exist in the JSON documents
+  let existing_keys: Vec<String> = match sqlx::query_scalar::<_, String>(
+    "SELECT DISTINCT jsonb_object_keys(doc) FROM json_table, jsonb_array_elements(document) AS doc WHERE datasource_id = $1",
+  )
+  .bind(datasource_id)
+  .fetch_all(pool)
+  .await
+  {
+    Ok(keys) => keys,
+    Err(e) => {
+      eprintln!("Failed to query JSON document keys: {}", e);
+      let _ = update_job_status(pool, &job.job_id, "error").await;
+      return;
+    }
+  };
+
+  if !existing_keys.is_empty() {
+    let missing: Vec<&String> = columns
+      .iter()
+      .filter(|c| !existing_keys.contains(c))
+      .collect();
+    if !missing.is_empty() {
+      eprintln!(
+        "Columns not found in JSON documents: {:?}",
+        missing.iter().map(|c| c.as_str()).collect::<Vec<_>>()
+      );
+      let _ = update_job_status(pool, &job.job_id, "error").await;
+      return;
+    }
+  }
+
   // Build SELECT clause: SUM((doc->>'col')::numeric), AVG((doc->>'col')::numeric), ...
   let select_parts: Vec<String> = columns
     .iter()
