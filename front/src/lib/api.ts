@@ -20,9 +20,13 @@ async function request<T>(
   const token = localStorage.getItem(TOKEN_KEY)
 
   const headers: HeadersInit = {
-    "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
+  }
+
+  // Only set Content-Type to application/json if it's not FormData and not already set
+  if (!(options.body instanceof FormData) && !headers.hasOwnProperty("Content-Type")) {
+    ;(headers as Record<string, string>)["Content-Type"] = "application/json"
   }
 
   const config: RequestInit = {
@@ -68,6 +72,7 @@ async function request<T>(
     if (!window.location.pathname.includes("/login")) {
       window.location.href = "/login"
     }
+    throw new Error("Unauthorized")
   }
 
   if (!response.ok) {
@@ -93,14 +98,16 @@ export const api = {
     request<T>(url, {
       ...options,
       method: "POST",
-      body: body ? JSON.stringify(body) : undefined,
+      body:
+        body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
     }),
 
   put: <T>(url: string, body?: unknown, options?: RequestOptions) =>
     request<T>(url, {
       ...options,
       method: "PUT",
-      body: body ? JSON.stringify(body) : undefined,
+      body:
+        body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
     }),
 
   delete: <T>(url: string, options?: RequestOptions) =>
