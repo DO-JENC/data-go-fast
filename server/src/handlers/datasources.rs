@@ -44,13 +44,10 @@ pub async fn get_all_datasources(
   State(state): State<AppState>,
   Query(filters): Query<DatasourceFilters>,
 ) -> Result<Json<PaginatedResponse<Datasource>>, (StatusCode, String)> {
-  let group_id = match filters.group_id {
-    Some(id) => id,
-    None => {
-      // Fallback for now if no group_id is provided, but ideally it should be mandatory or based on user's groups
-      Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap()
-    }
-  };
+  let group_id = filters.group_id.ok_or_else(|| {
+    warn!("get_all_datasources called without group_id");
+    (StatusCode::BAD_REQUEST, "Missing required parameter: group_id".to_string())
+  })?;
 
   let limit = filters.limit.unwrap_or(10);
   let offset = filters.offset.unwrap_or(0);
@@ -127,6 +124,7 @@ pub async fn get_datasource_by_id(
 struct Metadata {
   file_type: DatasourceType,
   header: bool,
+  group_id: Uuid,
 }
 
 struct FileUploadRequest {
@@ -169,7 +167,25 @@ fn parse_metadata(metadata: Value) -> Result<Metadata, (StatusCode, String)> {
     })
     .unwrap_or(true);
 
-  Ok(Metadata { file_type, header })
+  let group_id: Uuid = match metadata.get("group_id") {
+    Some(val) => {
+      let raw = val.as_str().unwrap_or("").trim_matches('"');
+      Uuid::parse_str(raw).map_err(|_| {
+        (
+          StatusCode::BAD_REQUEST,
+          format!("Invalid 'group_id' value: {}", val),
+        )
+      })?
+    }
+    None => {
+      return Err((
+        StatusCode::BAD_REQUEST,
+        "Missing 'group_id' field in metadata".to_string(),
+      ));
+    }
+  };
+
+  Ok(Metadata { file_type, header, group_id })
 }
 
 async fn parse_multipart(
@@ -340,8 +356,7 @@ pub async fn csv_ingestion_handler(
     );
   }
 
-  // TO-DO : Implement authentication and change group dynamically
-  let group: Uuid = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
+  let group: Uuid = metadata.group_id;
 
   // Generate File & Job UUID
   let file_uuid: Uuid = Uuid::new_v4();
