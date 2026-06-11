@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useGroups } from "@/hooks/use-groups"
 import { api } from "@/lib/api"
 import { useState } from "react"
 import { toast } from "sonner"
@@ -9,6 +10,7 @@ export default function DatasourceForm({
 }: {
   onRefresh?: () => void
 }) {
+  const { currentGroup } = useGroups()
   const [file, setFile] = useState<File | null>(null)
   const [hasHeader, setHasHeader] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -18,7 +20,10 @@ export default function DatasourceForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!file) return
-
+    if (!currentGroup?.id) {
+      toast.error("No group selected")
+      return
+    }
     if (isCsv && !hasHeader) {
       toast.error("Headerless CSV files are not yet supported")
       return
@@ -33,11 +38,10 @@ export default function DatasourceForm({
         JSON.stringify({
           type: isCsv ? "csv" : "json",
           header: hasHeader,
+          group_id: currentGroup.id,
         }),
       )
-
       await api.post("/datasources", fd)
-
       toast.success("Datasource uploaded successfully")
       onRefresh?.()
       setFile(null)
@@ -62,7 +66,6 @@ export default function DatasourceForm({
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
       </div>
-
       {isCsv && (
         <label className="flex cursor-pointer items-center gap-2 text-sm">
           <input
@@ -74,10 +77,9 @@ export default function DatasourceForm({
           Has header row
         </label>
       )}
-
       <Button
         type="submit"
-        disabled={!file || uploading}
+        disabled={!file || uploading || !currentGroup?.id}
         className="w-full bg-[#8828ad] text-white shadow-sm transition-all hover:bg-[#8828ad]/90 active:scale-[0.98]"
       >
         {uploading ? "Uploading..." : "Upload"}

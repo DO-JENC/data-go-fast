@@ -1,54 +1,58 @@
 import { useGroups } from "@/hooks/use-groups"
 import { api } from "@/lib/api"
 import type { Datasource } from "@/types/datasource"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 export function useDatasources(initialPage = 1, limit = 10) {
-  const { currentGroup } = useGroups()
+  const { currentGroup, loadingGroup } = useGroups()
   const [datasources, setDatasources] = useState<Datasource[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(initialPage)
 
-  async function fetchDatasources() {
-    if (!currentGroup?.id) return
-    try {
-      const data = await api.get<{ items: Datasource[]; total: number }>("/datasources", {
-        params: { group_id: currentGroup.id, limit: String(limit), offset: String((page - 1) * limit) }
-      })
-      setDatasources(data.items)
-      setTotal(data.total)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setLoading(false)
-    }
-  }
+  const fetchDatasources = useCallback(
+    async (signal?: AbortSignal) => {
+      // Wait for GroupProvider to finish resolving before attempting any fetch
+      if (loadingGroup) return
+      if (!currentGroup?.id) {
+        setLoading(false)
+        return
+      }
 
-  useEffect(() => {
-    if (!currentGroup?.id) {
-      setLoading(false)
-      return
-    }
+      setLoading(true)
+      setError(null)
 
-    const controller = new AbortController()
-    api
-      .get<{ items: Datasource[]; total: number }>("/datasources", {
-        signal: controller.signal,
-        params: { group_id: currentGroup.id, limit: String(limit), offset: String((page - 1) * limit) }
-      })
-      .then((data) => {
+      try {
+        const data = await api.get<{ items: Datasource[]; total: number }>(
+          "/datasources",
+          {
+            signal,
+            params: {
+              group_id: currentGroup.id,
+              limit: String(limit),
+              offset: String((page - 1) * limit),
+            },
+          },
+        )
         setDatasources(data.items)
         setTotal(data.total)
-      })
-      .catch((err) => {
-        if (err.name !== "AbortError")
-          setError(err instanceof Error ? err.message : String(err))
-      })
-      .finally(() => setLoading(false))
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return
+        setError(err instanceof Error ? err.message : String(err))
+      } finally {
+        setLoading(false)
+      }
+    },
+    // loadingGroup is a dep so the effect re-runs once the group is resolved
+    [currentGroup?.id, loadingGroup, page, limit],
+  )
+
+  useEffect(() => {
+    const controller = new AbortController()
+    fetchDatasources(controller.signal)
     return () => controller.abort()
-  }, [currentGroup?.id, page, limit])
+  }, [fetchDatasources])
 
   async function removeDatasource(id: string): Promise<boolean> {
     try {
@@ -56,7 +60,7 @@ export function useDatasources(initialPage = 1, limit = 10) {
       setDatasources((prev) => prev.filter((ds) => ds.id !== id))
       setTotal((prev) => prev - 1)
       return true
-    } catch (err: unknown) {
+    } catch (err) {
       throw new Error(
         err instanceof Error ? err.message : "Erreur lors de la suppression",
         { cause: err },
@@ -66,9 +70,14 @@ export function useDatasources(initialPage = 1, limit = 10) {
 
   return {
     datasources,
-    loading,
+    // Treat datasource loading as pending while the group itself is still loading
+    loading: loading || loadingGroup,
     error,
+    total,
+    page,
+    setPage,
+    totalPages: Math.ceil(total / limit),
     removeDatasource,
-    refreshDatasources: fetchDatasources,
+    refreshDatasources: () => fetchDatasources(),
   }
 }
